@@ -3,4 +3,6 @@ __pycache__
 *test*
 /build/
 /dist/
+/dist.zip
 /build.ifp
+/TML_installer*.exe
