@@ -1,8 +1,10 @@
 import enum
 import os
+import subprocess
 
 from PySide6.QtCore import Qt, Slot
-from PySide6.QtWidgets import QTreeWidget, QTreeWidgetItem, QHeaderView
+from PySide6.QtGui import QAction
+from PySide6.QtWidgets import QTreeWidget, QTreeWidgetItem, QHeaderView, QMenu
 
 from utils import path_analysis, byte_size_to_str
 
@@ -15,6 +17,24 @@ class FileTree(QTreeWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.itemChanged.connect(self.on_item_changed)
+
+    def contextMenuEvent(self, e) -> None:
+        item = self.itemAt(e.pos())
+        if item is not None:
+            context = QMenu(self)
+            open_dir_action = QAction('打开文件夹', self)
+
+            @Slot()
+            def _open_file_dir():
+                if item.data(0, Qt.ItemDataRole.UserRole) == FileTree.PathType.FILE:
+                    # 选中文件
+                    subprocess.run(f'explorer /select,"{item.toolTip(0)}"', shell=True)
+                else:
+                    os.startfile(item.toolTip(0))
+
+            open_dir_action.triggered.connect(_open_file_dir)
+            context.addAction(open_dir_action)
+            context.exec(e.globalPos())
 
     @Slot()
     def on_item_changed(self, item: QTreeWidgetItem, col):
