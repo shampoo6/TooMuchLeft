@@ -1,0 +1,529 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>689</width>
+    <height>538</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QHBoxLayout" name="horizontalLayout">
+    <item>
+     <widget class="QSplitter" name="splitter">
+      <property name="orientation">
+       <enum>Qt::Orientation::Horizontal</enum>
+      </property>
+      <property name="opaqueResize">
+       <bool>true</bool>
+      </property>
+      <property name="handleWidth">
+       <number>5</number>
+      </property>
+      <property name="childrenCollapsible">
+       <bool>false</bool>
+      </property>
+      <widget class="QWidget" name="fileContainer" native="true">
+       <property name="minimumSize">
+        <size>
+         <width>400</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="autoFillBackground">
+        <bool>true</bool>
+       </property>
+       <layout class="QVBoxLayout" name="verticalLayout">
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="FileTree" name="fileTree">
+          <column>
+           <property name="text">
+            <string>文件或目录</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>类型</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>文件大小</string>
+           </property>
+          </column>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,0,0,0">
+          <item>
+           <widget class="QPushButton" name="selectAllButton">
+            <property name="statusTip">
+             <string>选择全部文件和目录</string>
+            </property>
+            <property name="text">
+             <string>全选</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="unselectAllButton">
+            <property name="statusTip">
+             <string>取消全部选择</string>
+            </property>
+            <property name="text">
+             <string>全不选</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QWidget" name="widget" native="true"/>
+          </item>
+          <item>
+           <widget class="QPushButton" name="deleteButton">
+            <property name="toolTip">
+             <string>删除勾选的文件和目录(Ctrl+D)</string>
+            </property>
+            <property name="statusTip">
+             <string>删除勾选的文件和目录(Ctrl+D)</string>
+            </property>
+            <property name="text">
+             <string>删除</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="ruleContainer" native="true">
+       <property name="minimumSize">
+        <size>
+         <width>200</width>
+         <height>500</height>
+        </size>
+       </property>
+       <property name="autoFillBackground">
+        <bool>true</bool>
+       </property>
+       <layout class="QFormLayout" name="formLayout">
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_5">
+          <property name="toolTip">
+           <string>选择设置好的规则</string>
+          </property>
+          <property name="statusTip">
+           <string>选择设置好的规则</string>
+          </property>
+          <property name="text">
+           <string>规则</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <layout class="QHBoxLayout" name="horizontalLayout_6">
+          <item>
+           <widget class="QComboBox" name="ruleNameBox"/>
+          </item>
+          <item>
+           <widget class="QToolButton" name="ruleManageButton">
+            <property name="toolTip">
+             <string>规则管理</string>
+            </property>
+            <property name="statusTip">
+             <string>规则管理</string>
+            </property>
+            <property name="text">
+             <string>...</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="label_4">
+          <property name="toolTip">
+           <string>目标目录</string>
+          </property>
+          <property name="statusTip">
+           <string>目标目录</string>
+          </property>
+          <property name="text">
+           <string>目录</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <layout class="QHBoxLayout" name="horizontalLayout_4">
+          <item>
+           <widget class="QLineEdit" name="dir_edit">
+            <property name="readOnly">
+             <bool>true</bool>
+            </property>
+            <property name="placeholderText">
+             <string>请选择搜索目录</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QToolButton" name="selectDirButton">
+            <property name="toolTip">
+             <string>选择目录</string>
+            </property>
+            <property name="statusTip">
+             <string>选择目录</string>
+            </property>
+            <property name="text">
+             <string>...</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="label">
+          <property name="toolTip">
+           <string>按文件大小过滤</string>
+          </property>
+          <property name="statusTip">
+           <string>按文件大小过滤</string>
+          </property>
+          <property name="text">
+           <string>大小</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <layout class="QHBoxLayout" name="horizontalLayout_3">
+          <item>
+           <widget class="QComboBox" name="sizeBox">
+            <item>
+             <property name="text">
+              <string>不限大小</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>10MB</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>100MB</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>500MB</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>1GB</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>5GB</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+          <item>
+           <widget class="QToolButton" name="moreSizeButton">
+            <property name="toolTip">
+             <string>自定义大小</string>
+            </property>
+            <property name="statusTip">
+             <string>自定义大小</string>
+            </property>
+            <property name="text">
+             <string>...</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item row="3" column="0">
+         <widget class="QLabel" name="label_2">
+          <property name="toolTip">
+           <string>过滤小于或大于等于指定大小的文件</string>
+          </property>
+          <property name="statusTip">
+           <string>过滤小于或大于等于指定大小的文件</string>
+          </property>
+          <property name="text">
+           <string>比较</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="1">
+         <widget class="QComboBox" name="compareBox">
+          <item>
+           <property name="text">
+            <string>大于等于</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>小于</string>
+           </property>
+          </item>
+         </widget>
+        </item>
+        <item row="4" column="0">
+         <widget class="QLabel" name="label_3">
+          <property name="cursor">
+           <cursorShape>WhatsThisCursor</cursorShape>
+          </property>
+          <property name="toolTip">
+           <string>搜索文件的规则
+具体规则和.gitignore相同</string>
+          </property>
+          <property name="statusTip">
+           <string>搜索文件的规则，具体规则和.gitignore相同</string>
+          </property>
+          <property name="text">
+           <string>具体
+规则</string>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="1">
+         <widget class="EditableList" name="ruleList">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+            <horstretch>0</horstretch>
+            <verstretch>1</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="selectionMode">
+           <enum>QAbstractItemView::SelectionMode::ExtendedSelection</enum>
+          </property>
+         </widget>
+        </item>
+        <item row="6" column="1">
+         <layout class="QHBoxLayout" name="horizontalLayout_5">
+          <item>
+           <widget class="QPushButton" name="searchButton">
+            <property name="toolTip">
+             <string>搜索符合规则和文件大小的文件(Ctrl+Enter)</string>
+            </property>
+            <property name="statusTip">
+             <string>搜索符合规则和文件大小的文件(Ctrl+Enter)</string>
+            </property>
+            <property name="text">
+             <string>搜索</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item row="5" column="1">
+         <widget class="QCheckBox" name="disableProgressCheckBox">
+          <property name="toolTip">
+           <string>禁用进度条删除文件会更快</string>
+          </property>
+          <property name="statusTip">
+           <string>禁用进度条删除文件会更快</string>
+          </property>
+          <property name="text">
+           <string>禁用进度条</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+          <property name="tristate">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <widget class="QToolBar" name="toolBar">
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>RightToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionSave"/>
+   <addaction name="actionSaveAs"/>
+   <addaction name="actionLoad"/>
+   <addaction name="actionAdd"/>
+   <addaction name="actionDelete"/>
+   <addaction name="separator"/>
+   <addaction name="actionQuit"/>
+  </widget>
+  <action name="actionSave">
+   <property name="icon">
+    <iconset resource="../qrc/resources.qrc">
+     <normaloff>:/icons/save.png</normaloff>:/icons/save.png</iconset>
+   </property>
+   <property name="text">
+    <string>Save</string>
+   </property>
+   <property name="toolTip">
+    <string>保存规则(Ctrl+S)</string>
+   </property>
+   <property name="statusTip">
+    <string>保存规则(Ctrl+S)</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+S</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionLoad">
+   <property name="icon">
+    <iconset resource="../qrc/resources.qrc">
+     <normaloff>:/icons/load.png</normaloff>:/icons/load.png</iconset>
+   </property>
+   <property name="text">
+    <string>Load</string>
+   </property>
+   <property name="toolTip">
+    <string>加载规则(Ctrl+L)</string>
+   </property>
+   <property name="statusTip">
+    <string>加载任意文本文件作为规则(Ctrl+L)</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+L</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionQuit">
+   <property name="icon">
+    <iconset resource="../qrc/resources.qrc">
+     <normaloff>:/icons/quit.png</normaloff>:/icons/quit.png</iconset>
+   </property>
+   <property name="text">
+    <string>Quit</string>
+   </property>
+   <property name="toolTip">
+    <string>退出(Alt+F4)</string>
+   </property>
+   <property name="statusTip">
+    <string>退出(Alt+F4)</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionAdd">
+   <property name="icon">
+    <iconset resource="../qrc/resources.qrc">
+     <normaloff>:/icons/add.png</normaloff>:/icons/add.png</iconset>
+   </property>
+   <property name="text">
+    <string>Add</string>
+   </property>
+   <property name="toolTip">
+    <string>添加规则</string>
+   </property>
+   <property name="statusTip">
+    <string>添加规则</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionDelete">
+   <property name="icon">
+    <iconset resource="../qrc/resources.qrc">
+     <normaloff>:/icons/sub.png</normaloff>:/icons/sub.png</iconset>
+   </property>
+   <property name="text">
+    <string>Remove</string>
+   </property>
+   <property name="toolTip">
+    <string>删除规则(Del)</string>
+   </property>
+   <property name="statusTip">
+    <string>删除规则(Del)</string>
+   </property>
+   <property name="shortcut">
+    <string>Del</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionSaveAs">
+   <property name="icon">
+    <iconset resource="../qrc/resources.qrc">
+     <normaloff>:/icons/save_as.png</normaloff>:/icons/save_as.png</iconset>
+   </property>
+   <property name="text">
+    <string>SaveAs</string>
+   </property>
+   <property name="toolTip">
+    <string>另存为(Ctrl+Shift+S)</string>
+   </property>
+   <property name="statusTip">
+    <string>另存为(Ctrl+Shift+S)</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>EditableList</class>
+   <extends>QListWidget</extends>
+   <header>widgets/editable_list.h</header>
+  </customwidget>
+  <customwidget>
+   <class>FileTree</class>
+   <extends>QTreeWidget</extends>
+   <header>widgets/file_tree.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources>
+  <include location="../qrc/resources.qrc"/>
+ </resources>
+ <connections/>
+</ui>
