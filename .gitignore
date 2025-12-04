@@ -6,3 +6,4 @@ __pycache__
 /dist.zip
 /build.ifp
 /TML_installer*.exe
+/rules.json

@@ -1,21 +1,24 @@
+import concurrent
 import enum
 import os
 import subprocess
+import threading
+from concurrent.futures import ThreadPoolExecutor
+from queue import Queue
 
-from PySide6.QtCore import Qt, Slot
+from PySide6.QtCore import Qt, Slot, QThreadPool
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QTreeWidget, QTreeWidgetItem, QHeaderView, QMenu
 
-from utils import path_analysis, byte_size_to_str
+from helpers.build_tree_runnable import BuildTreeRunnable
+from utils import path_analysis, byte_size_to_str, create_tree_item
+from constants import PathType
 
 
 class FileTree(QTreeWidget):
-    class PathType(enum.Enum):
-        DIR = 0
-        FILE = 1
-
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.thread_pool = QThreadPool.globalInstance()
         self.itemChanged.connect(self.on_item_changed)
 
     def contextMenuEvent(self, e) -> None:
@@ -26,7 +29,7 @@ class FileTree(QTreeWidget):
 
             @Slot()
             def _open_file_dir():
-                if item.data(0, Qt.ItemDataRole.UserRole) == FileTree.PathType.FILE:
+                if item.data(0, Qt.ItemDataRole.UserRole) == PathType.FILE:
                     # 选中文件
                     subprocess.run(f'explorer /select,"{item.toolTip(0)}"', shell=True)
                 else:
@@ -42,7 +45,7 @@ class FileTree(QTreeWidget):
             return
         self.blockSignals(True)
         # 勾选目录时，同步子节点
-        if item.data(0, Qt.ItemDataRole.UserRole) == FileTree.PathType.DIR:
+        if item.data(0, Qt.ItemDataRole.UserRole) == PathType.DIR:
             self._async_child_check_state(item, item.checkState(0))
         # 同步父节点
         if item.parent() is not None:
@@ -94,70 +97,6 @@ class FileTree(QTreeWidget):
             if child.childCount() > 0:
                 self._async_child_check_state(child, check_state)
 
-    def _get_dir_item(self, parent, dirs, root_path):
-        if len(dirs) == 0:
-            return parent
-        dir_name = dirs.pop(0)
-        current_item = None
-        for i in range(parent.childCount()):
-            child = parent.child(i)
-            child_name = child.text(0)  # 第一列固定为名称
-            if child_name == dir_name:
-                current_item = child
-                break
-        if current_item is None:
-            current_item = QTreeWidgetItem(parent)
-            # 设置路径类型，是目录还是文件
-            current_item.setData(0, Qt.ItemDataRole.UserRole, FileTree.PathType.DIR)
-            current_item.setText(0, dir_name)
-            current_item.setFlags(current_item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
-            current_item.setCheckState(0, Qt.CheckState.Checked)
-            # 设置tooltip
-            parent_path = parent.toolTip(0) or root_path
-            current_item.setToolTip(0, os.path.normpath(os.path.join(parent_path, dir_name)))
-            parent.addChild(current_item)
-        if len(dirs) > 0:
-            return self._get_dir_item(current_item, dirs, root_path)
-        else:
-            return current_item
-
-    def load_file_tree(self, file_datas, root_path):
-        """
-        加载文件树
-        :param file_datas: 文件数据
-        :param root_path: 搜索根路径
-        :return:
-        """
-        self.blockSignals(True)
-        self.clear()
-        root = self.invisibleRootItem()
-        for file_data in file_datas:
-            file_path, match, ext_name, file_size = file_data
-            path_slice = path_analysis(match)
-            dirs = path_slice[:-1]
-            file_name = path_slice[-1]
-            # 查找目录节点
-            dir_item = self._get_dir_item(root, dirs, root_path)
-            # 创建文件节点
-            file_item = QTreeWidgetItem(dir_item)
-            file_item.setText(0, file_name)
-            file_item.setText(1, ext_name)
-            file_item.setText(2, byte_size_to_str(file_size))
-            file_item.setFlags(file_item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
-            file_item.setCheckState(0, Qt.CheckState.Checked)
-            file_item.setToolTip(0, file_path)
-            # 设置路径类型
-            file_item.setData(0, Qt.ItemDataRole.UserRole, FileTree.PathType.FILE)
-            dir_item.addChild(file_item)
-        self.expandAll()
-        self.blockSignals(False)
-        # 设置列宽策略
-        self.setColumnWidth(0, 256)
-        self.header().setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
-        self.setColumnWidth(1, 32)
-        self.header().setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)
-        self.setColumnWidth(1, 64)
-
     def _get_checked_item(self, current_item: QTreeWidgetItem, checked_items):
         """
         递归获取所有勾选的节点
@@ -169,9 +108,10 @@ class FileTree(QTreeWidget):
 
         path_type = current_item.data(0, Qt.ItemDataRole.UserRole)
         if path_type is not None:
-            if path_type == FileTree.PathType.FILE and current_item.checkState(0) == Qt.CheckState.Checked:
+            if path_type == PathType.FILE and current_item.checkState(0) == Qt.CheckState.Checked:
                 file_items.append(current_item)
-            elif path_type == FileTree.PathType.DIR and current_item.checkState(0) == Qt.CheckState.Checked:
+            elif path_type == PathType.DIR and current_item.checkState(
+                    0) == Qt.CheckState.Checked and current_item.childCount() == 0:
                 dir_items.append(current_item)
         if current_item.childCount() > 0:
             for i in range(current_item.childCount()):
@@ -185,3 +125,47 @@ class FileTree(QTreeWidget):
 
     def all_check_parent(self, parent, check_state: Qt.CheckState):
         self._all_check_parent(parent, check_state)
+
+    def _get_parent_item(self, node_map, parent_path):
+        if parent_path not in node_map:
+            pth = parent_path.split(os.sep)[-1]
+            parent_item = create_tree_item(pth, parent_path, True, '', '')
+            node_map[parent_path] = parent_item
+            parent_parent_path = os.path.abspath(os.path.join(parent_path, '..'))
+            parent_parent_item = self._get_parent_item(node_map, parent_parent_path)
+            parent_parent_item.addChild(parent_item)
+        return node_map[parent_path]
+
+    def load_tree(self, search_tgt_dir, tree_node_queue):
+        self.blockSignals(True)
+        self.clear()
+
+        node_map = {
+            search_tgt_dir: self.invisibleRootItem()
+        }
+
+        data_queue = Queue()
+
+        while not tree_node_queue.empty():
+            rab = BuildTreeRunnable(data_queue, tree_node_queue.get())
+            self.thread_pool.start(rab)
+        self.thread_pool.waitForDone(-1)
+
+        items_info = []
+        while not data_queue.empty():
+            parent_path, item_path, item = data_queue.get()
+            items_info.append((parent_path, item_path, item))
+            node_map[item_path] = item
+        items_info = sorted(items_info, key=lambda x: x[1])
+        for parent_path, item_path, item in items_info:
+            parent_item = self._get_parent_item(node_map, parent_path)
+            parent_item.addChild(item)
+
+        self.expandAll()
+        self.blockSignals(False)
+        # 设置列宽策略
+        self.setColumnWidth(0, 256)
+        self.header().setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
+        self.setColumnWidth(1, 32)
+        self.header().setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)
+        self.setColumnWidth(1, 64)
