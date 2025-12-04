@@ -1,25 +1,20 @@
-import concurrent
 import os
 import sys
 import threading
-import time
-from concurrent.futures import ThreadPoolExecutor
 from queue import Queue
 
 import pathspec
-from PySide6.QtConcurrent import QtConcurrent
 from PySide6.QtCore import Slot, Qt, QThreadPool
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog, QInputDialog, QMessageBox, QProgressDialog
 
+from helpers.delete_item_runnable import DeleteItemRunnable
 from helpers.delete_runnable import DeleteRunnable
 from helpers.rule_manager import RuleManager
 from helpers.search_runnable import SearchRunnable
 from uic.main import Ui_MainWindow
-from utils import match_files, file_size_to_byte
 from widgets.custom_file_size_dialog import CustomFileSizeDialog
 from constants import base_dir, PathType
-from widgets.file_tree import FileTree
 from widgets.load_rule_dialog import LoadRuleDialog
 from widgets.rule_manage_dialog import RuleManageDialog
 
@@ -65,17 +60,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 文件列表
         self.selectAllButton.clicked.connect(self.fileTree.select_all)
         self.unselectAllButton.clicked.connect(self.fileTree.unselect_all)
-        # self.deleteButton.clicked.connect(self.on_delete)
-        # self.deleteButton.clicked.connect(self.on_delete_multi_thread)
-        # self.deleteButton.clicked.connect(self.on_delete_plus)
-        self.deleteButton.clicked.connect(self.on_delete_pp)
+        self.deleteButton.clicked.connect(self.on_delete)
         self.deleteButton.setShortcut('Ctrl + D')
 
         # todo test
         # self.dir_edit.setText(r'D:\projects\py-projects\TooMuchLeft\cq_ai_250701')
-        self.dir_edit.setText(r'D:\projects\py-projects\TooMuchLeft\test_dir')
+        # self.dir_edit.setText(r'D:\projects\py-projects\TooMuchLeft\test_dir')
         # self.dir_edit.setText(r'D:\projects\py-projects')
-        # self.dir_edit.setText(r'D:\projects\学校\课程笔记')
+        self.dir_edit.setText(r'D:\projects\学校\课程笔记')
 
     def closeEvent(self, e) -> None:
         # 询问是否保存配置
@@ -211,70 +203,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         data_queue = Queue()
         rab = SearchRunnable(data_queue, spec, dir_path, self.compareBox.currentText(), self.sizeBox.currentText())
         self.thread_pool.start(rab)
-        self.thread_pool.waitForDone(-1)
+        # 边搜索边构建树
         self.fileTree.load_tree(dir_path, data_queue)
 
     # =================== 删除
     @Slot()
-    def on_delete_plus(self):
-        # 搜集所有勾选项
-        dir_items, file_items = self.fileTree.all_checked_items()
-        if len(file_items) == 0 and len(dir_items) == 0:
-            return
-        result = QMessageBox.question(self, '删除', '确定删除吗？',
-                                      QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                                      QMessageBox.StandardButton.No)
-        if result == QMessageBox.StandardButton.No:
-            return
-        total_step = len(dir_items) + len(file_items)
-        current_step = 0
-        progress = QProgressDialog("删除中...", "取消", 0, total_step,
-                                   self) if self.disableProgressCheckBox.checkState() == Qt.CheckState.Unchecked else None
-        if progress is not None:
-            progress.setWindowTitle('删除')
-            progress.setWindowModality(Qt.WindowModality.WindowModal)
-            progress.setMinimumWidth(200)
-            progress.setMaximumWidth(300)
-            progress.show()
-
-        def _delete_file_or_dir(item):
-            nonlocal current_step
-            is_dir = item.data(0, Qt.ItemDataRole.UserRole) == PathType.DIR
-            pth = item.toolTip(0)
-            # todo 暂时注释删除代码，测试进度条
-            # if is_dir:
-            #     def onerror(func, path, _):
-            #         if os.path.isfile(path):
-            #             os.chmod(path, stat.S_IWRITE)
-            #             os.remove(path)
-            #
-            #     shutil.rmtree(pth, onerror=onerror)
-            # else:
-            #     os.chmod(pth, stat.S_IWRITE)
-            #     os.remove(pth)
-            if progress is not None:
-                with lock:
-                    if progress.wasCanceled():
-                        return
-                    progress.setLabelText(f'已删除: {os.path.basename(pth)}')
-                    current_step += 1
-                    progress.setValue(current_step)
-                    time.sleep(1)
-                print()
-
-        lock = threading.Lock()
-        with ThreadPoolExecutor(max_workers=os.cpu_count() * 2) as executor:
-            fs = [executor.submit(_delete_file_or_dir, item) for item in dir_items + file_items]
-            for future in concurrent.futures.as_completed(fs):
-                try:
-                    future.result()
-                except Exception as e:
-                    QMessageBox.critical(self, '删除失败', f'删除失败: {str(e)}')
-        self.on_search(True)
-
-    @Slot()
-    def on_delete_pp(self):
-        s = time.perf_counter()
+    def on_delete(self):
         # 搜集所有勾选项
         dir_items, file_items = self.fileTree.all_checked_items()
         if len(file_items) == 0 and len(dir_items) == 0:
@@ -313,8 +247,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 progress.setLabelText(f'已删除: {os.path.basename(deleted_path)}')
                 progress.setValue(current_step)
         self.thread_pool.waitForDone(-1)
-        print(f'耗时: {time.perf_counter() - s}s')
-        self.on_search()
+        # 更新 ui
+        for item in dir_items + file_items:
+            rab = DeleteItemRunnable(self.fileTree, item)
+            self.thread_pool.start(rab)
+        self.thread_pool.waitForDone(-1)
 
 
 app = QApplication(sys.argv)

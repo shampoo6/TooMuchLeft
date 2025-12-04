@@ -1,17 +1,13 @@
-import concurrent
-import enum
+import ctypes
 import os
 import subprocess
 import threading
-from concurrent.futures import ThreadPoolExecutor
-from queue import Queue
 
 from PySide6.QtCore import Qt, Slot, QThreadPool
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QTreeWidget, QTreeWidgetItem, QHeaderView, QMenu
 
 from helpers.build_tree_runnable import BuildTreeRunnable
-from utils import path_analysis, byte_size_to_str, create_tree_item
 from constants import PathType
 
 
@@ -46,7 +42,7 @@ class FileTree(QTreeWidget):
         self.blockSignals(True)
         # 勾选目录时，同步子节点
         if item.data(0, Qt.ItemDataRole.UserRole) == PathType.DIR:
-            self._async_child_check_state(item, item.checkState(0))
+            self._sync_child_check_state(item, item.checkState(0))
         # 同步父节点
         if item.parent() is not None:
             self._all_check_parent(item.parent(), item.checkState(0))
@@ -89,13 +85,13 @@ class FileTree(QTreeWidget):
             self._all_check_parent(parent.parent(), check_state)
 
     # 同步子节点状态
-    def _async_child_check_state(self, parent: QTreeWidgetItem, check_state: Qt.CheckState):
+    def _sync_child_check_state(self, parent: QTreeWidgetItem, check_state: Qt.CheckState):
         for i in range(parent.childCount()):
             child = parent.child(i)
             child.setCheckState(0, check_state)
-            self._async_child_check_state(child, check_state)
+            self._sync_child_check_state(child, check_state)
             if child.childCount() > 0:
-                self._async_child_check_state(child, check_state)
+                self._sync_child_check_state(child, check_state)
 
     def _get_checked_item(self, current_item: QTreeWidgetItem, checked_items):
         """
@@ -126,16 +122,6 @@ class FileTree(QTreeWidget):
     def all_check_parent(self, parent, check_state: Qt.CheckState):
         self._all_check_parent(parent, check_state)
 
-    def _get_parent_item(self, node_map, parent_path):
-        if parent_path not in node_map:
-            pth = parent_path.split(os.sep)[-1]
-            parent_item = create_tree_item(pth, parent_path, True, '', '')
-            node_map[parent_path] = parent_item
-            parent_parent_path = os.path.abspath(os.path.join(parent_path, '..'))
-            parent_parent_item = self._get_parent_item(node_map, parent_parent_path)
-            parent_parent_item.addChild(parent_item)
-        return node_map[parent_path]
-
     def load_tree(self, search_tgt_dir, tree_node_queue):
         self.blockSignals(True)
         self.clear()
@@ -144,23 +130,20 @@ class FileTree(QTreeWidget):
             search_tgt_dir: self.invisibleRootItem()
         }
 
-        data_queue = Queue()
+        def _build_node():
+            lock = threading.Lock()
+            while 1:
+                tree_data = tree_node_queue.get()
+                rab = BuildTreeRunnable(lock, node_map, tree_data)
+                self.thread_pool.start(rab)
 
-        while not tree_node_queue.empty():
-            rab = BuildTreeRunnable(data_queue, tree_node_queue.get())
-            self.thread_pool.start(rab)
+        thread = threading.Thread(target=_build_node)
+        thread.start()
         self.thread_pool.waitForDone(-1)
-
-        items_info = []
-        while not data_queue.empty():
-            parent_path, item_path, item = data_queue.get()
-            items_info.append((parent_path, item_path, item))
-            node_map[item_path] = item
-        items_info = sorted(items_info, key=lambda x: x[1])
-        for parent_path, item_path, item in items_info:
-            parent_item = self._get_parent_item(node_map, parent_path)
-            parent_item.addChild(item)
-
+        # 强制删除线程
+        thread_id = thread.ident
+        ctypes.pythonapi.PyThreadState_SetAsyncExc(thread_id, ctypes.py_object(SystemExit))
+        # 展开
         self.expandAll()
         self.blockSignals(False)
         # 设置列宽策略
