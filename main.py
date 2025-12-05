@@ -12,9 +12,9 @@ from helpers.delete_item_runnable import DeleteItemRunnable
 from helpers.delete_runnable import DeleteRunnable
 from helpers.rule_manager import RuleManager
 from helpers.search_runnable import SearchRunnable
-from uic.main import Ui_MainWindow
+from uic.main_list_view import Ui_MainWindow
 from widgets.custom_file_size_dialog import CustomFileSizeDialog
-from constants import base_dir, PathType
+from constants import base_dir
 from widgets.load_rule_dialog import LoadRuleDialog
 from widgets.rule_manage_dialog import RuleManageDialog
 
@@ -58,16 +58,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.searchButton.setShortcut('Ctrl + Return')
 
         # 文件列表
-        self.selectAllButton.clicked.connect(self.fileTree.select_all)
-        self.unselectAllButton.clicked.connect(self.fileTree.unselect_all)
+        # self.selectAllButton.clicked.connect(self.fileTree.select_all)
+        # self.unselectAllButton.clicked.connect(self.fileTree.unselect_all)
+        self.selectAllButton.clicked.connect(self.fileTable.select_all)
+        self.unselectAllButton.clicked.connect(self.fileTable.unselect_all)
         self.deleteButton.clicked.connect(self.on_delete)
         self.deleteButton.setShortcut('Ctrl + D')
 
         # todo test
-        # self.dir_edit.setText(r'D:\projects\py-projects\TooMuchLeft\cq_ai_250701')
-        # self.dir_edit.setText(r'D:\projects\py-projects\TooMuchLeft\test_dir')
+        # self.dir_edit.setText(r'D:\projects\py-projects\TooMuchLeft\test_凯里学院人工智能21')
+        self.dir_edit.setText(r'D:\projects\py-projects\TooMuchLeft\test_dir')
         # self.dir_edit.setText(r'D:\projects\py-projects')
-        self.dir_edit.setText(r'D:\projects\学校\课程笔记')
+        # self.dir_edit.setText(r'D:\projects\学校\课程笔记')
+        # self.dir_edit.setText(r'D:\projects\学校\实训\凯里学院人工智能21')
 
     def closeEvent(self, e) -> None:
         # 询问是否保存配置
@@ -203,22 +206,27 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         data_queue = Queue()
         rab = SearchRunnable(data_queue, spec, dir_path, self.compareBox.currentText(), self.sizeBox.currentText())
         self.thread_pool.start(rab)
-        # 边搜索边构建树
-        self.fileTree.load_tree(dir_path, data_queue)
+        self.thread_pool.waitForDone(-1)
+        # 构建表格
+        table_datas = []
+        while not data_queue.empty():
+            table_datas.append(data_queue.get())
+        table_datas = sorted(table_datas, key=lambda x: x[2])
+        self.fileTable.load_table(table_datas)
 
     # =================== 删除
     @Slot()
     def on_delete(self):
         # 搜集所有勾选项
-        dir_items, file_items = self.fileTree.all_checked_items()
-        if len(file_items) == 0 and len(dir_items) == 0:
+        delete_datas = self.fileTable.get_checked_path()
+        total_step = len(delete_datas)
+        if total_step == 0:
             return
         result = QMessageBox.question(self, '删除', '确定删除吗？',
                                       QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                                       QMessageBox.StandardButton.No)
         if result == QMessageBox.StandardButton.No:
             return
-        total_step = len(dir_items) + len(file_items)
         current_step = 0
 
         progress = QProgressDialog("删除中...", "取消", 0, total_step,
@@ -232,10 +240,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         queue = Queue() if progress is not None else None
         cancel_event = threading.Event() if progress is not None else None
-        for item in dir_items + file_items:
-            pth = item.toolTip(0)
-            is_dir = item.data(0, Qt.ItemDataRole.UserRole) == PathType.DIR
-            rab = DeleteRunnable(pth, is_dir, queue, cancel_event)
+        for abs_path, is_dir in delete_datas:
+            rab = DeleteRunnable(abs_path, is_dir, queue, cancel_event)
             self.thread_pool.start(rab)
         if progress is not None:
             while current_step < total_step:
@@ -248,10 +254,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 progress.setValue(current_step)
         self.thread_pool.waitForDone(-1)
         # 更新 ui
-        for item in dir_items + file_items:
-            rab = DeleteItemRunnable(self.fileTree, item)
-            self.thread_pool.start(rab)
-        self.thread_pool.waitForDone(-1)
+        self.fileTable.delete_checked()
 
 
 app = QApplication(sys.argv)
