@@ -10,6 +10,7 @@ class FileTable(QTableWidget):
         self.cellClicked.connect(self.on_cell_clicked)
 
     def load_table(self, table_datas):
+        self.clear()
         self.setRowCount(len(table_datas))
         for i, (root, pth, abs_path, is_dir, ext_name, size) in enumerate(table_datas):
             checkbox = QCheckBox()
