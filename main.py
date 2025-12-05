@@ -58,8 +58,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.searchButton.setShortcut('Ctrl + Return')
 
         # 文件列表
-        # self.selectAllButton.clicked.connect(self.fileTree.select_all)
-        # self.unselectAllButton.clicked.connect(self.fileTree.unselect_all)
         self.selectAllButton.clicked.connect(self.fileTable.select_all)
         self.unselectAllButton.clicked.connect(self.fileTable.unselect_all)
         self.deleteButton.clicked.connect(self.on_delete)

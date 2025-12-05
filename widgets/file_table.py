@@ -1,5 +1,9 @@
+import os
+import subprocess
+
 from PySide6.QtCore import Slot
-from PySide6.QtWidgets import QTableWidget, QHeaderView, QCheckBox, QTableWidgetItem
+from PySide6.QtGui import QAction
+from PySide6.QtWidgets import QTableWidget, QHeaderView, QCheckBox, QTableWidgetItem, QMenu, QApplication
 
 from utils import byte_size_to_str
 
@@ -9,10 +13,39 @@ class FileTable(QTableWidget):
         super().__init__(parent)
         self.cellClicked.connect(self.on_cell_clicked)
 
+    def contextMenuEvent(self, e) -> None:
+        p = e.pos()
+        row_idx = self.rowAt(p.y())
+        if row_idx != -1:
+            context = QMenu(self)
+            open_dir_action = QAction('打开文件夹', self)
+            copy_action = QAction('复制路径', self)
+
+            @Slot()
+            def _open_file_dir():
+                pth = self.item(row_idx, 2).text()
+                if self.item(row_idx, 3).text() == '否':
+                    # 选中文件
+                    subprocess.run(f'explorer /select,"{pth}"', shell=True)
+                else:
+                    os.startfile(pth)
+
+            @Slot()
+            def _copy_path():
+                pth = self.item(row_idx, 2).text()
+                QApplication.clipboard().setText(pth)
+
+            open_dir_action.triggered.connect(_open_file_dir)
+            copy_action.triggered.connect(_copy_path)
+            context.addAction(open_dir_action)
+            context.addAction(copy_action)
+            context.exec(e.globalPos())
+
     def load_table(self, table_datas):
-        self.clear()
+        self.clearContents()
         self.setRowCount(len(table_datas))
         for i, (root, pth, abs_path, is_dir, ext_name, size) in enumerate(table_datas):
+            abs_path = os.path.normpath(abs_path)
             checkbox = QCheckBox()
             checkbox.setChecked(False)
             self.setCellWidget(i, 0, checkbox)
