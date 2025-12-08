@@ -1,5 +1,5 @@
 from PySide6.QtCore import Qt, Slot
-from PySide6.QtWidgets import QListWidget, QListWidgetItem, QAbstractItemDelegate
+from PySide6.QtWidgets import QListWidget, QListWidgetItem
 
 
 class EditableList(QListWidget):

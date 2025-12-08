@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'main_list_view.ui'
+## Form generated from reading UI file 'main_table_widget.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.10.0
 ##
@@ -18,9 +18,10 @@ from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient,
     QTransform)
 from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QComboBox,
     QFormLayout, QHBoxLayout, QHeaderView, QLabel,
-    QLineEdit, QListWidgetItem, QMainWindow, QPushButton,
-    QSizePolicy, QSplitter, QStatusBar, QTableWidgetItem,
-    QToolBar, QToolButton, QVBoxLayout, QWidget)
+    QLayout, QLineEdit, QListWidgetItem, QMainWindow,
+    QPushButton, QSizePolicy, QSplitter, QStatusBar,
+    QTableWidgetItem, QToolBar, QToolButton, QVBoxLayout,
+    QWidget)
 
 from widgets.editable_list import EditableList
 from widgets.file_table import FileTable
@@ -30,7 +31,7 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(689, 538)
+        MainWindow.resize(837, 613)
         self.actionSave = QAction(MainWindow)
         self.actionSave.setObjectName(u"actionSave")
         icon = QIcon()
@@ -71,6 +72,8 @@ class Ui_MainWindow(object):
         self.centralwidget.setObjectName(u"centralwidget")
         self.horizontalLayout = QHBoxLayout(self.centralwidget)
         self.horizontalLayout.setObjectName(u"horizontalLayout")
+        self.horizontalLayout.setSizeConstraint(QLayout.SizeConstraint.SetMinimumSize)
+        self.horizontalLayout.setContentsMargins(-1, -1, -1, 0)
         self.splitter = QSplitter(self.centralwidget)
         self.splitter.setObjectName(u"splitter")
         self.splitter.setOrientation(Qt.Orientation.Horizontal)
@@ -83,6 +86,7 @@ class Ui_MainWindow(object):
         self.fileContainer.setAutoFillBackground(True)
         self.verticalLayout = QVBoxLayout(self.fileContainer)
         self.verticalLayout.setObjectName(u"verticalLayout")
+        self.verticalLayout.setContentsMargins(0, 0, 0, 0)
         self.fileTable = FileTable(self.fileContainer)
         if (self.fileTable.columnCount() < 6):
             self.fileTable.setColumnCount(6)
@@ -109,11 +113,18 @@ class Ui_MainWindow(object):
         self.horizontalLayout_2.setObjectName(u"horizontalLayout_2")
         self.selectAllButton = QPushButton(self.fileContainer)
         self.selectAllButton.setObjectName(u"selectAllButton")
+        sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.selectAllButton.sizePolicy().hasHeightForWidth())
+        self.selectAllButton.setSizePolicy(sizePolicy)
 
         self.horizontalLayout_2.addWidget(self.selectAllButton)
 
         self.unselectAllButton = QPushButton(self.fileContainer)
         self.unselectAllButton.setObjectName(u"unselectAllButton")
+        sizePolicy.setHeightForWidth(self.unselectAllButton.sizePolicy().hasHeightForWidth())
+        self.unselectAllButton.setSizePolicy(sizePolicy)
 
         self.horizontalLayout_2.addWidget(self.unselectAllButton)
 
@@ -124,6 +135,8 @@ class Ui_MainWindow(object):
 
         self.deleteButton = QPushButton(self.fileContainer)
         self.deleteButton.setObjectName(u"deleteButton")
+        sizePolicy.setHeightForWidth(self.deleteButton.sizePolicy().hasHeightForWidth())
+        self.deleteButton.setSizePolicy(sizePolicy)
 
         self.horizontalLayout_2.addWidget(self.deleteButton)
 
@@ -133,6 +146,11 @@ class Ui_MainWindow(object):
         self.splitter.addWidget(self.fileContainer)
         self.ruleContainer = QWidget(self.splitter)
         self.ruleContainer.setObjectName(u"ruleContainer")
+        sizePolicy1 = QSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Preferred)
+        sizePolicy1.setHorizontalStretch(0)
+        sizePolicy1.setVerticalStretch(0)
+        sizePolicy1.setHeightForWidth(self.ruleContainer.sizePolicy().hasHeightForWidth())
+        self.ruleContainer.setSizePolicy(sizePolicy1)
         self.ruleContainer.setMinimumSize(QSize(200, 500))
         self.ruleContainer.setAutoFillBackground(True)
         self.formLayout = QFormLayout(self.ruleContainer)
@@ -225,11 +243,12 @@ class Ui_MainWindow(object):
 
         self.ruleList = EditableList(self.ruleContainer)
         self.ruleList.setObjectName(u"ruleList")
-        sizePolicy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(1)
-        sizePolicy.setHeightForWidth(self.ruleList.sizePolicy().hasHeightForWidth())
-        self.ruleList.setSizePolicy(sizePolicy)
+        self.ruleList.setEnabled(True)
+        sizePolicy2 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        sizePolicy2.setHorizontalStretch(0)
+        sizePolicy2.setVerticalStretch(1)
+        sizePolicy2.setHeightForWidth(self.ruleList.sizePolicy().hasHeightForWidth())
+        self.ruleList.setSizePolicy(sizePolicy2)
         self.ruleList.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
 
         self.formLayout.setWidget(4, QFormLayout.ItemRole.FieldRole, self.ruleList)
@@ -261,6 +280,11 @@ class Ui_MainWindow(object):
         MainWindow.setStatusBar(self.statusbar)
         self.toolBar = QToolBar(MainWindow)
         self.toolBar.setObjectName(u"toolBar")
+        sizePolicy3 = QSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Preferred)
+        sizePolicy3.setHorizontalStretch(0)
+        sizePolicy3.setVerticalStretch(0)
+        sizePolicy3.setHeightForWidth(self.toolBar.sizePolicy().hasHeightForWidth())
+        self.toolBar.setSizePolicy(sizePolicy3)
         MainWindow.addToolBar(Qt.ToolBarArea.RightToolBarArea, self.toolBar)
 
         self.toolBar.addAction(self.actionSave)

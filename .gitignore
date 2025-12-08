@@ -8,3 +8,4 @@ __pycache__
 /build.ifp
 /TML_installer*.exe
 /rules.json
+!make_test_dir.py

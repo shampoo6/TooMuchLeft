@@ -1,7 +1,7 @@
 import os
 import subprocess
 
-from PySide6.QtCore import Slot
+from PySide6.QtCore import Slot, QTimer
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QTableWidget, QHeaderView, QCheckBox, QTableWidgetItem, QMenu, QApplication
 
@@ -11,6 +11,9 @@ from utils import byte_size_to_str
 class FileTable(QTableWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.batch_size = 1
+        # 一共分多少个批次加载
+        self.batch_count = 100
         self.cellClicked.connect(self.on_cell_clicked)
 
     def contextMenuEvent(self, e) -> None:
@@ -41,10 +44,13 @@ class FileTable(QTableWidget):
             context.addAction(copy_action)
             context.exec(e.globalPos())
 
-    def load_table(self, table_datas):
-        self.clearContents()
-        self.setRowCount(len(table_datas))
-        for i, (root, pth, abs_path, is_dir, ext_name, size) in enumerate(table_datas):
+    def _build_next_batch(self, batch_idx, table_datas):
+        start_i = batch_idx.pop(0)
+        _table_datas = table_datas[start_i:start_i + self.batch_size]
+
+        for root, pth, abs_path, is_dir, ext_name, size in _table_datas:
+            i = self.rowCount()
+            self.insertRow(i)
             abs_path = os.path.normpath(abs_path)
             checkbox = QCheckBox()
             checkbox.setChecked(False)
@@ -56,6 +62,22 @@ class FileTable(QTableWidget):
             self.setItem(i, 3, QTableWidgetItem('是' if is_dir else '否'))
             self.setItem(i, 4, QTableWidgetItem(ext_name))
             self.setItem(i, 5, QTableWidgetItem(byte_size_to_str(size)))
+
+        if len(batch_idx) > 0:
+            QTimer.singleShot(0, lambda: self._build_next_batch(batch_idx, table_datas))
+
+    def load_table(self, table_datas):
+        self.clearContents()
+        if len(table_datas) == 0:
+            return
+        row_count = len(table_datas)
+        self.setRowCount(0)
+
+        # 计算 batch_size
+        self.batch_size = row_count // self.batch_count + 1
+        batch_idx = [i for i in range(0, row_count, self.batch_size)]
+        self._build_next_batch(batch_idx, table_datas)
+
         self.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         self.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         self.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)

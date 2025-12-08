@@ -8,11 +8,10 @@ from PySide6.QtCore import Slot, Qt, QThreadPool
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog, QInputDialog, QMessageBox, QProgressDialog
 
-from helpers.delete_item_runnable import DeleteItemRunnable
 from helpers.delete_runnable import DeleteRunnable
 from helpers.rule_manager import RuleManager
 from helpers.search_runnable import SearchRunnable
-from uic.main_list_view import Ui_MainWindow
+from uic.main_table_widget import Ui_MainWindow
 from widgets.custom_file_size_dialog import CustomFileSizeDialog
 from constants import base_dir
 from widgets.load_rule_dialog import LoadRuleDialog
@@ -63,13 +62,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.deleteButton.clicked.connect(self.on_delete)
         self.deleteButton.setShortcut('Ctrl + D')
 
-        # todo test
-        # self.dir_edit.setText(r'D:\projects\py-projects\TooMuchLeft\test_凯里学院人工智能21')
-        self.dir_edit.setText(r'D:\projects\py-projects\TooMuchLeft\test_dir')
-        # self.dir_edit.setText(r'D:\projects\py-projects')
-        # self.dir_edit.setText(r'D:\projects\学校\课程笔记')
-        # self.dir_edit.setText(r'D:\projects\学校\实训\凯里学院人工智能21')
-
     def closeEvent(self, e) -> None:
         # 询问是否保存配置
         current = RuleManager.get_instance().rule_data['current']
@@ -93,9 +85,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     @Slot()
     def update_rule_name_box(self):
-        # if self.receivers('currentTextChanged') > 0:
-        #     self.ruleNameBox.currentTextChanged.disconnect(self.on_rule_name_changed)
-
         last_rule_name = self.ruleNameBox.currentText()
 
         self.ruleNameBox.blockSignals(True)
@@ -107,12 +96,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         if last_rule_name != rule_data['current']:
             self.ruleNameBox.setCurrentText(rule_data['current'])
-        # self.ruleNameBox.currentTextChanged.connect(self.on_rule_name_changed)
-        # if rule_data['current'] is not None:
-        #     if rule_data['current'] != list(rule_data['rules'].keys())[0]:
-        #         self.ruleNameBox.setCurrentText(rule_data['current'])
-        #     else:
-        #         self.on_rule_name_changed(rule_data['current'])
 
     # =================== 槽
 
@@ -220,6 +203,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         total_step = len(delete_datas)
         if total_step == 0:
             return
+        # 增加一步，用于删除 ui 界面中的选项
+        total_step += 1
+
         result = QMessageBox.question(self, '删除', '确定删除吗？',
                                       QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                                       QMessageBox.StandardButton.No)
@@ -242,7 +228,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             rab = DeleteRunnable(abs_path, is_dir, queue, cancel_event)
             self.thread_pool.start(rab)
         if progress is not None:
-            while current_step < total_step:
+            while current_step < total_step - 1:
                 if progress.wasCanceled():
                     cancel_event.set()
                     break
@@ -250,9 +236,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 current_step += 1
                 progress.setLabelText(f'已删除: {os.path.basename(deleted_path)}')
                 progress.setValue(current_step)
+
         self.thread_pool.waitForDone(-1)
         # 更新 ui
         self.fileTable.delete_checked()
+        if progress is not None:
+            current_step += 1
+            progress.setLabelText(f'删除完毕')
+            progress.setValue(current_step)
 
 
 app = QApplication(sys.argv)
