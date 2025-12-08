@@ -83,7 +83,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 if reply == QMessageBox.StandardButton.Yes:
                     self.on_save()
 
-    @Slot()
     def update_rule_name_box(self):
         last_rule_name = self.ruleNameBox.currentText()
 
@@ -100,6 +99,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     # =================== 槽
 
     # =================== 工具栏
+    @Slot()
+    def on_rule_loaded(self):
+        self.update_rule_name_box()
+        self.on_rule_name_changed(self.ruleNameBox.currentText())
+
     @Slot()
     def on_save(self):
         current = RuleManager.get_instance().rule_data['current']
@@ -124,7 +128,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     @Slot()
     def on_load_rule(self):
         self.load_rule_dialog = LoadRuleDialog(self)
-        self.load_rule_dialog.ruleLoaded.connect(self.update_rule_name_box)
+        self.load_rule_dialog.ruleLoaded.connect(self.on_rule_loaded)
         self.load_rule_dialog.open()
 
     # =================== 规则设置和管理
