@@ -1,0 +1,25 @@
+// 请删除所有注释
+{
+    "name": "规则名称",
+    // 包含规则
+    "include": [
+        // 以下为示例
+        ".idea",
+        ".git",
+        "__pycache__",
+        "dist",
+        "output",
+        "model",
+        "models",
+        "weight",
+        "weights",
+        "data",
+        "datas",
+        "*test*"
+    ],
+    // 排除规则
+    "exclude": [
+        // 以下为示例
+        "node_modules"
+    ]
+}

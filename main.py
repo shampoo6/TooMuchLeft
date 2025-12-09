@@ -9,7 +9,7 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog, QInputDialog, QMessageBox, QProgressDialog
 
 from helpers.delete_runnable import DeleteRunnable
-from helpers.rule_manager import RuleManager
+from helpers.rule_manager import RuleManager, SavedData, RuleData
 from helpers.search_runnable import SearchRunnable
 from uic.main_table_widget import Ui_MainWindow
 from widgets.custom_file_size_dialog import CustomFileSizeDialog
@@ -33,18 +33,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionSave.triggered.connect(self.on_save)
         self.actionSaveAs.triggered.connect(self.on_save_as)
         self.actionLoad.triggered.connect(self.on_load_rule)
-        self.actionAdd.triggered.connect(self.ruleList.add_new_rule)
-        self.actionDelete.triggered.connect(self.ruleList.delete_rules)
         self.actionQuit.triggered.connect(self.close)
 
         self.actionSave.setShortcut('Ctrl + S')
         self.actionSaveAs.setShortcut('Ctrl + Shift + S')
 
         # 规则选择
+        RuleManager.get_instance().currentIdChanged.connect(self.update_rule_name_box_and_rule_list)
+        self.ruleSpliter.setStretchFactor(0, 2)
+        self.ruleSpliter.setStretchFactor(1, 1)
         self.ruleManageButton.clicked.connect(self.on_manage_rules)
         self.ruleNameBox.currentTextChanged.connect(self.on_rule_name_changed)
-        self.update_rule_name_box()
-        self.on_rule_name_changed(self.ruleNameBox.currentText())
+        self.update_rule_name_box_and_rule_list()
 
         # 目录选择
         self.selectDirButton.clicked.connect(self.on_select_dir)
@@ -62,83 +62,104 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.deleteButton.clicked.connect(self.on_delete)
         self.deleteButton.setShortcut('Ctrl + D')
 
+        # todo
+        self.dir_edit.setText(r'D:\projects\学校\实训')
+
     def closeEvent(self, e) -> None:
         # 询问是否保存配置
-        current = RuleManager.get_instance().rule_data['current']
-        if current is not None:
-            # 对比深度相等
-            deep_equal = True
-            current_data = RuleManager.get_instance().rule_data['rules'][current]
-            rules = [self.ruleList.item(i).text() for i in range(self.ruleList.count())]
-            if len(current_data) != len(rules):
-                deep_equal = False
-            if deep_equal:
-                for i in range(len(current_data)):
-                    if current_data[i] != rules[i]:
-                        deep_equal = False
-                        break
-            if not deep_equal:
-                reply = QMessageBox.question(self, '保存', '规则有变化是否保存配置？',
-                                             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-                if reply == QMessageBox.StandardButton.Yes:
-                    self.on_save()
+        if self.has_diff_with_saved_data():
+            reply = QMessageBox.question(self, '保存', '规则有变化是否保存配置？',
+                                         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            if reply == QMessageBox.StandardButton.Yes:
+                self.on_save()
 
     def update_rule_name_box(self):
-        last_rule_name = self.ruleNameBox.currentText()
-
         self.ruleNameBox.blockSignals(True)
         self.ruleNameBox.clear()
-        rule_data = RuleManager.get_instance().rule_data
-        for rule_name in rule_data['rules'].keys():
-            self.ruleNameBox.addItem(rule_name)
+        data: SavedData = RuleManager.get_instance().data
+        for _id, rule in data['rules'].items():
+            self.ruleNameBox.addItem(rule['name'], _id)
+        if data['current_id'] is not None:
+            self.ruleNameBox.setCurrentText(data['rules'][data['current_id']]['name'])
         self.ruleNameBox.blockSignals(False)
 
-        if last_rule_name != rule_data['current']:
-            self.ruleNameBox.setCurrentText(rule_data['current'])
+    def update_rule_list(self):
+        data: SavedData = RuleManager.get_instance().data
+        if data['current_id'] is None:
+            return
+        current_data = data['rules'][data['current_id']]
+        self.includeRuleList.load(current_data['include'])
+        self.excludeRuleList.load(current_data['exclude'])
+
+    def get_current_rules(self):
+        """获取当前 includeRuleList 和 excludeRuleList 的数据"""
+        include_rules = [self.includeRuleList.item(i).text() for i in range(self.includeRuleList.count())]
+        exclude_rules = [self.excludeRuleList.item(i).text() for i in range(self.excludeRuleList.count())]
+        return include_rules, exclude_rules
+
+    def has_diff_with_saved_data(self):
+        include_rules, exclude_rules = self.get_current_rules()
+        data: SavedData = RuleManager.get_instance().data
+        current_rule = data['rules'][data['current_id']]
+        return include_rules != current_rule['include'] or exclude_rules != current_rule['exclude']
 
     # =================== 槽
 
     # =================== 工具栏
     @Slot()
-    def on_rule_loaded(self):
-        self.update_rule_name_box()
-        self.on_rule_name_changed(self.ruleNameBox.currentText())
-
-    @Slot()
     def on_save(self):
-        current = RuleManager.get_instance().rule_data['current']
-        if current is None:
+        current_id = RuleManager.get_instance().data['current_id']
+        if current_id is None:
             self.on_save_as()
         else:
-            rules = [self.ruleList.item(i).text() for i in range(self.ruleList.count())]
-            RuleManager.get_instance().save(current, rules)
+            include_rules, exclude_rules = self.get_current_rules()
+            rule_data: RuleData = {
+                "name": self.ruleNameBox.currentText(),
+                "include": include_rules,
+                "exclude": exclude_rules
+            }
+            _id = self.ruleNameBox.currentData()
+            if not RuleManager.get_instance().update_rule(_id, rule_data):
+                QMessageBox.critical(self, '保存失败', '找不到对应 _id')
 
     @Slot()
     def on_save_as(self):
         rule_name, ok = QInputDialog.getText(self, '另存为', '请输入规则名:')
         if not ok:
             return
-        rules = [self.ruleList.item(i).text() for i in range(self.ruleList.count())]
-        RuleManager.get_instance().save(rule_name, rules)
+        include_rules, exclude_rules = self.get_current_rules()
+        rule_data: RuleData = {
+            "name": rule_name,
+            "include": include_rules,
+            "exclude": exclude_rules
+        }
+        if not RuleManager.get_instance().add_rule(rule_data):
+            QMessageBox.critical(self, '保存失败', '规则名已存在')
+            return
         # 添加规则选项并选中
         if self.ruleNameBox.findText(rule_name) == -1:
-            self.ruleNameBox.addItem(rule_name)
+            self.ruleNameBox.blockSignals(True)
+            self.ruleNameBox.addItem(rule_name, RuleManager.get_instance().data['current_id'])
             self.ruleNameBox.setCurrentText(rule_name)
+            self.ruleNameBox.blockSignals(False)
 
     @Slot()
     def on_load_rule(self):
         self.load_rule_dialog = LoadRuleDialog(self)
-        self.load_rule_dialog.ruleLoaded.connect(self.on_rule_loaded)
         self.load_rule_dialog.open()
 
     # =================== 规则设置和管理
     @Slot()
+    def update_rule_name_box_and_rule_list(self):
+        """当前规则发生变化时，更新视图"""
+        self.update_rule_name_box()
+        self.update_rule_list()
+
+    @Slot()
     def on_rule_name_changed(self, text):
         if isinstance(text, str) and text.strip() != '':
-            rd = RuleManager.get_instance().rule_data
-            RuleManager.get_instance().setCurrent(text)
-            rule_items = rd['rules'][text]
-            self.ruleList.load(rule_items)
+            rule_id = self.ruleNameBox.currentData()
+            RuleManager.get_instance().switch_rule(rule_id)
 
     @Slot()
     def on_select_dir(self):
@@ -163,14 +184,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     @Slot()
     def on_manage_rules(self):
         self.rule_manage_dialog = RuleManageDialog()
-        self.rule_manage_dialog.deletedRules.connect(self.update_rule_name_box_and_clear_rule_list)
         self.rule_manage_dialog.open()
-
-    @Slot()
-    def update_rule_name_box_and_clear_rule_list(self):
-        self.update_rule_name_box()
-        if RuleManager.get_instance().rule_data['current'] is None:
-            self.ruleList.clear()
 
     @Slot()
     def on_search(self):
@@ -181,15 +195,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if not os.path.exists(dir_path):
             QMessageBox.critical(self, '错误', '目录不存在')
             return
-        rules = [self.ruleList.item(i).text() for i in range(self.ruleList.count())]
-        if len(rules) == 0:
-            # 没有过滤条件，则匹配所有内容
-            spec = pathspec.PathSpec.from_lines('gitwildmatch', ['**'])
-        else:
-            spec = pathspec.PathSpec.from_lines('gitwildmatch', rules)
+
+        include_rules, exclude_rules = self.get_current_rules()
+        include_spec = pathspec.PathSpec.from_lines('gitwildmatch', include_rules) if len(include_rules) > 0 else None
+        exclude_spec = pathspec.PathSpec.from_lines('gitwildmatch', exclude_rules) if len(exclude_rules) > 0 else None
 
         data_queue = Queue()
-        rab = SearchRunnable(data_queue, spec, dir_path, self.compareBox.currentText(), self.sizeBox.currentText())
+        rab = SearchRunnable(data_queue, include_spec, exclude_spec, dir_path, self.compareBox.currentText(),
+                             self.sizeBox.currentText())
         self.thread_pool.start(rab)
         self.thread_pool.waitForDone(-1)
         # 构建表格

@@ -11,9 +11,9 @@ from utils import byte_size_to_str
 class FileTable(QTableWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.batch_size = 1
-        # 一共分多少个批次加载
-        self.batch_count = 100
+        # 第一批显示数据的大小
+        self.first_batch_size = 1000
+        self.batch_size = 3
         self.cellClicked.connect(self.on_cell_clicked)
 
     def contextMenuEvent(self, e) -> None:
@@ -44,11 +44,8 @@ class FileTable(QTableWidget):
             context.addAction(copy_action)
             context.exec(e.globalPos())
 
-    def _build_next_batch(self, batch_idx, table_datas):
-        start_i = batch_idx.pop(0)
-        _table_datas = table_datas[start_i:start_i + self.batch_size]
-
-        for root, pth, abs_path, is_dir, ext_name, size in _table_datas:
+    def _build_table(self, table_datas):
+        for root, pth, abs_path, is_dir, ext_name, size in table_datas:
             i = self.rowCount()
             self.insertRow(i)
             abs_path = os.path.normpath(abs_path)
@@ -63,20 +60,25 @@ class FileTable(QTableWidget):
             self.setItem(i, 4, QTableWidgetItem(ext_name))
             self.setItem(i, 5, QTableWidgetItem(byte_size_to_str(size)))
 
+    def _build_next_batch(self, batch_idx, table_datas):
+        start_i = batch_idx.pop(0)
+        _table_datas = table_datas[start_i:start_i + self.batch_size]
+
+        self._build_table(_table_datas)
+
         if len(batch_idx) > 0:
             QTimer.singleShot(0, lambda: self._build_next_batch(batch_idx, table_datas))
 
     def load_table(self, table_datas):
         self.clearContents()
+        self.setRowCount(0)
         if len(table_datas) == 0:
             return
         row_count = len(table_datas)
-        self.setRowCount(0)
 
-        # 计算 batch_size
-        self.batch_size = row_count // self.batch_count + 1
-        batch_idx = [i for i in range(0, row_count, self.batch_size)]
-        self._build_next_batch(batch_idx, table_datas)
+        # 先批量构造一批结果
+        _first_batch_count = row_count if row_count <= self.first_batch_size else self.first_batch_size
+        self._build_table(table_datas[:_first_batch_count])
 
         self.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         self.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
@@ -84,6 +86,13 @@ class FileTable(QTableWidget):
         self.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
         self.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
         self.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
+
+        if row_count > self.first_batch_size:
+            # 分批加载
+            row_count -= self.first_batch_size
+            table_datas = table_datas[_first_batch_count:]
+            batch_idx = [i for i in range(0, row_count, self.batch_size)]
+            self._build_next_batch(batch_idx, table_datas)
 
     def get_checked_path(self):
         delete_datas = []

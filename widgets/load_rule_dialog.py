@@ -1,20 +1,20 @@
+import json
 import os.path
 
-from PySide6.QtCore import Slot, Signal
+from PySide6.QtCore import Slot
 from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox
 
 from constants import base_dir
 from uic.load_rule_dialog import Ui_LoadRuleDialog
-from helpers.rule_manager import RuleManager
+from helpers.rule_manager import RuleManager, RuleData
 
 
 class LoadRuleDialog(QDialog, Ui_LoadRuleDialog):
-    ruleLoaded = Signal()
-
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setupUi(self)
         self.selectFileButton.clicked.connect(self.on_select_file)
+        self.viewTemplateButton.clicked.connect(self.on_view_template)
         self.closeButton.clicked.connect(self.close)
         self.loadButton.clicked.connect(self.on_load)
 
@@ -24,17 +24,18 @@ class LoadRuleDialog(QDialog, Ui_LoadRuleDialog):
             self,
             '选择文件',
             base_dir,
-            '.txt 或 .gitignore (*.txt *.gitignore)'
+            '.txt 或 .json (*.txt *.json)'
         )
         if file_path != '':
             self.ruleFilePathEdit.setText(file_path)
 
     @Slot()
+    def on_view_template(self):
+        file_path = os.path.join(base_dir, 'rule_template.txt')
+        os.startfile(file_path)
+
+    @Slot()
     def on_load(self):
-        rule_name = self.ruleNameEdit.text().strip()
-        if rule_name == '':
-            QMessageBox.warning(self, '警告', '规则名称不能为空')
-            return
         file_path = self.ruleFilePathEdit.text().strip()
         if file_path == '':
             QMessageBox.warning(self, '警告', '规则文件路径不能为空')
@@ -42,11 +43,23 @@ class LoadRuleDialog(QDialog, Ui_LoadRuleDialog):
         if not os.path.exists(file_path):
             QMessageBox.warning(self, '警告', '规则文件不存在')
             return
-
-        with open(file_path, 'r', encoding='utf-8') as f:
-            file_data = f.read()
-        lines = file_data.splitlines()
-        rules = [line for line in lines if line.strip() != '']
-        RuleManager.get_instance().save(rule_name, rules)
-        self.ruleLoaded.emit()
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data: RuleData = json.load(f)
+        except:
+            QMessageBox.warning(self, '警告', '规则文件格式错误')
+            return
+        # 校验 data 数据
+        if 'name' not in data:
+            QMessageBox.warning(self, '警告', 'name 字段不能为空')
+            return
+        if 'include' not in data or not isinstance(data['include'], list):
+            QMessageBox.warning(self, '警告', 'include 字段不能为空且必须为列表')
+            return
+        if 'exclude' not in data or not isinstance(data['exclude'], list):
+            QMessageBox.warning(self, '警告', 'exclude 字段不能为空且必须为列表')
+            return
+        if not RuleManager.get_instance().add_rule(data):
+            QMessageBox.warning(self, '警告', '规则名已存在')
+            return
         self.close()

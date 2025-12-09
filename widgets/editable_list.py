@@ -1,4 +1,5 @@
 from PySide6.QtCore import Qt, Slot
+from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import QListWidget, QListWidgetItem
 
 
@@ -9,6 +10,10 @@ class EditableList(QListWidget):
         self.current_edit_item = None
         delegate = self.itemDelegate()
         delegate.closeEditor.connect(self.on_editor_closed)
+
+    def keyPressEvent(self, event: QKeyEvent):
+        if event.key() == Qt.Key.Key_Delete:
+            self.delete_rules()
 
     def load(self, items):
         self.clear()
@@ -28,7 +33,7 @@ class EditableList(QListWidget):
 
     @Slot()
     def delete_rules(self):
-        idxs =[idx.row() for idx in self.selectedIndexes()]
+        idxs = [idx.row() for idx in self.selectedIndexes()]
         if len(idxs) > 0:
             idxs = sorted(idxs, reverse=True)
             for idx in idxs:

@@ -31,7 +31,7 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(837, 613)
+        MainWindow.resize(845, 667)
         self.actionSave = QAction(MainWindow)
         self.actionSave.setObjectName(u"actionSave")
         icon = QIcon()
@@ -153,57 +153,61 @@ class Ui_MainWindow(object):
         self.ruleContainer.setSizePolicy(sizePolicy1)
         self.ruleContainer.setMinimumSize(QSize(200, 500))
         self.ruleContainer.setAutoFillBackground(True)
-        self.formLayout = QFormLayout(self.ruleContainer)
-        self.formLayout.setObjectName(u"formLayout")
-        self.formLayout.setContentsMargins(0, 0, 0, 0)
+        self.formLayout_3 = QFormLayout(self.ruleContainer)
+        self.formLayout_3.setObjectName(u"formLayout_3")
+        self.horizontalLayout_6 = QHBoxLayout()
+        self.horizontalLayout_6.setObjectName(u"horizontalLayout_6")
         self.label_5 = QLabel(self.ruleContainer)
         self.label_5.setObjectName(u"label_5")
 
-        self.formLayout.setWidget(0, QFormLayout.ItemRole.LabelRole, self.label_5)
+        self.horizontalLayout_6.addWidget(self.label_5)
 
-        self.horizontalLayout_6 = QHBoxLayout()
-        self.horizontalLayout_6.setObjectName(u"horizontalLayout_6")
+
+        self.formLayout_3.setLayout(0, QFormLayout.ItemRole.LabelRole, self.horizontalLayout_6)
+
+        self.horizontalLayout_7 = QHBoxLayout()
+        self.horizontalLayout_7.setObjectName(u"horizontalLayout_7")
         self.ruleNameBox = QComboBox(self.ruleContainer)
         self.ruleNameBox.setObjectName(u"ruleNameBox")
 
-        self.horizontalLayout_6.addWidget(self.ruleNameBox)
+        self.horizontalLayout_7.addWidget(self.ruleNameBox)
 
         self.ruleManageButton = QToolButton(self.ruleContainer)
         self.ruleManageButton.setObjectName(u"ruleManageButton")
 
-        self.horizontalLayout_6.addWidget(self.ruleManageButton)
+        self.horizontalLayout_7.addWidget(self.ruleManageButton)
 
 
-        self.formLayout.setLayout(0, QFormLayout.ItemRole.FieldRole, self.horizontalLayout_6)
+        self.formLayout_3.setLayout(0, QFormLayout.ItemRole.FieldRole, self.horizontalLayout_7)
 
         self.label_4 = QLabel(self.ruleContainer)
         self.label_4.setObjectName(u"label_4")
 
-        self.formLayout.setWidget(1, QFormLayout.ItemRole.LabelRole, self.label_4)
+        self.formLayout_3.setWidget(1, QFormLayout.ItemRole.LabelRole, self.label_4)
 
-        self.horizontalLayout_4 = QHBoxLayout()
-        self.horizontalLayout_4.setObjectName(u"horizontalLayout_4")
+        self.horizontalLayout_8 = QHBoxLayout()
+        self.horizontalLayout_8.setObjectName(u"horizontalLayout_8")
         self.dir_edit = QLineEdit(self.ruleContainer)
         self.dir_edit.setObjectName(u"dir_edit")
         self.dir_edit.setReadOnly(True)
 
-        self.horizontalLayout_4.addWidget(self.dir_edit)
+        self.horizontalLayout_8.addWidget(self.dir_edit)
 
         self.selectDirButton = QToolButton(self.ruleContainer)
         self.selectDirButton.setObjectName(u"selectDirButton")
 
-        self.horizontalLayout_4.addWidget(self.selectDirButton)
+        self.horizontalLayout_8.addWidget(self.selectDirButton)
 
 
-        self.formLayout.setLayout(1, QFormLayout.ItemRole.FieldRole, self.horizontalLayout_4)
+        self.formLayout_3.setLayout(1, QFormLayout.ItemRole.FieldRole, self.horizontalLayout_8)
 
         self.label = QLabel(self.ruleContainer)
         self.label.setObjectName(u"label")
 
-        self.formLayout.setWidget(2, QFormLayout.ItemRole.LabelRole, self.label)
+        self.formLayout_3.setWidget(2, QFormLayout.ItemRole.LabelRole, self.label)
 
-        self.horizontalLayout_3 = QHBoxLayout()
-        self.horizontalLayout_3.setObjectName(u"horizontalLayout_3")
+        self.horizontalLayout_9 = QHBoxLayout()
+        self.horizontalLayout_9.setObjectName(u"horizontalLayout_9")
         self.sizeBox = QComboBox(self.ruleContainer)
         self.sizeBox.addItem("")
         self.sizeBox.addItem("")
@@ -213,45 +217,87 @@ class Ui_MainWindow(object):
         self.sizeBox.addItem("")
         self.sizeBox.setObjectName(u"sizeBox")
 
-        self.horizontalLayout_3.addWidget(self.sizeBox)
+        self.horizontalLayout_9.addWidget(self.sizeBox)
 
         self.moreSizeButton = QToolButton(self.ruleContainer)
         self.moreSizeButton.setObjectName(u"moreSizeButton")
 
-        self.horizontalLayout_3.addWidget(self.moreSizeButton)
+        self.horizontalLayout_9.addWidget(self.moreSizeButton)
 
 
-        self.formLayout.setLayout(2, QFormLayout.ItemRole.FieldRole, self.horizontalLayout_3)
+        self.formLayout_3.setLayout(2, QFormLayout.ItemRole.FieldRole, self.horizontalLayout_9)
 
         self.label_2 = QLabel(self.ruleContainer)
         self.label_2.setObjectName(u"label_2")
 
-        self.formLayout.setWidget(3, QFormLayout.ItemRole.LabelRole, self.label_2)
+        self.formLayout_3.setWidget(3, QFormLayout.ItemRole.LabelRole, self.label_2)
 
         self.compareBox = QComboBox(self.ruleContainer)
         self.compareBox.addItem("")
         self.compareBox.addItem("")
         self.compareBox.setObjectName(u"compareBox")
 
-        self.formLayout.setWidget(3, QFormLayout.ItemRole.FieldRole, self.compareBox)
+        self.formLayout_3.setWidget(3, QFormLayout.ItemRole.FieldRole, self.compareBox)
 
-        self.label_3 = QLabel(self.ruleContainer)
+        self.ruleSpliter = QSplitter(self.ruleContainer)
+        self.ruleSpliter.setObjectName(u"ruleSpliter")
+        self.ruleSpliter.setOrientation(Qt.Orientation.Vertical)
+        self.ruleSpliter.setChildrenCollapsible(False)
+        self.layoutWidget = QWidget(self.ruleSpliter)
+        self.layoutWidget.setObjectName(u"layoutWidget")
+        self.formLayout = QFormLayout(self.layoutWidget)
+        self.formLayout.setObjectName(u"formLayout")
+        self.formLayout.setContentsMargins(0, 0, 0, 0)
+        self.label_3 = QLabel(self.layoutWidget)
         self.label_3.setObjectName(u"label_3")
         self.label_3.setCursor(QCursor(Qt.CursorShape.WhatsThisCursor))
 
-        self.formLayout.setWidget(4, QFormLayout.ItemRole.LabelRole, self.label_3)
+        self.formLayout.setWidget(0, QFormLayout.ItemRole.LabelRole, self.label_3)
 
-        self.ruleList = EditableList(self.ruleContainer)
-        self.ruleList.setObjectName(u"ruleList")
-        self.ruleList.setEnabled(True)
+        self.includeRuleList = EditableList(self.layoutWidget)
+        self.includeRuleList.setObjectName(u"includeRuleList")
+        self.includeRuleList.setEnabled(True)
         sizePolicy2 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         sizePolicy2.setHorizontalStretch(0)
-        sizePolicy2.setVerticalStretch(1)
-        sizePolicy2.setHeightForWidth(self.ruleList.sizePolicy().hasHeightForWidth())
-        self.ruleList.setSizePolicy(sizePolicy2)
-        self.ruleList.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        sizePolicy2.setVerticalStretch(0)
+        sizePolicy2.setHeightForWidth(self.includeRuleList.sizePolicy().hasHeightForWidth())
+        self.includeRuleList.setSizePolicy(sizePolicy2)
+        self.includeRuleList.setMinimumSize(QSize(0, 64))
+        self.includeRuleList.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
 
-        self.formLayout.setWidget(4, QFormLayout.ItemRole.FieldRole, self.ruleList)
+        self.formLayout.setWidget(0, QFormLayout.ItemRole.FieldRole, self.includeRuleList)
+
+        self.ruleSpliter.addWidget(self.layoutWidget)
+        self.layoutWidget1 = QWidget(self.ruleSpliter)
+        self.layoutWidget1.setObjectName(u"layoutWidget1")
+        self.formLayout_2 = QFormLayout(self.layoutWidget1)
+        self.formLayout_2.setObjectName(u"formLayout_2")
+        self.formLayout_2.setContentsMargins(0, 0, 0, 0)
+        self.label_6 = QLabel(self.layoutWidget1)
+        self.label_6.setObjectName(u"label_6")
+        self.label_6.setCursor(QCursor(Qt.CursorShape.WhatsThisCursor))
+
+        self.formLayout_2.setWidget(0, QFormLayout.ItemRole.LabelRole, self.label_6)
+
+        self.excludeRuleList = EditableList(self.layoutWidget1)
+        self.excludeRuleList.setObjectName(u"excludeRuleList")
+        sizePolicy2.setHeightForWidth(self.excludeRuleList.sizePolicy().hasHeightForWidth())
+        self.excludeRuleList.setSizePolicy(sizePolicy2)
+        self.excludeRuleList.setMinimumSize(QSize(0, 64))
+        self.excludeRuleList.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+
+        self.formLayout_2.setWidget(0, QFormLayout.ItemRole.FieldRole, self.excludeRuleList)
+
+        self.ruleSpliter.addWidget(self.layoutWidget1)
+
+        self.formLayout_3.setWidget(4, QFormLayout.ItemRole.SpanningRole, self.ruleSpliter)
+
+        self.disableProgressCheckBox = QCheckBox(self.ruleContainer)
+        self.disableProgressCheckBox.setObjectName(u"disableProgressCheckBox")
+        self.disableProgressCheckBox.setChecked(False)
+        self.disableProgressCheckBox.setTristate(False)
+
+        self.formLayout_3.setWidget(5, QFormLayout.ItemRole.FieldRole, self.disableProgressCheckBox)
 
         self.horizontalLayout_5 = QHBoxLayout()
         self.horizontalLayout_5.setObjectName(u"horizontalLayout_5")
@@ -261,14 +307,7 @@ class Ui_MainWindow(object):
         self.horizontalLayout_5.addWidget(self.searchButton)
 
 
-        self.formLayout.setLayout(6, QFormLayout.ItemRole.FieldRole, self.horizontalLayout_5)
-
-        self.disableProgressCheckBox = QCheckBox(self.ruleContainer)
-        self.disableProgressCheckBox.setObjectName(u"disableProgressCheckBox")
-        self.disableProgressCheckBox.setChecked(True)
-        self.disableProgressCheckBox.setTristate(False)
-
-        self.formLayout.setWidget(5, QFormLayout.ItemRole.FieldRole, self.disableProgressCheckBox)
+        self.formLayout_3.setLayout(6, QFormLayout.ItemRole.SpanningRole, self.horizontalLayout_5)
 
         self.splitter.addWidget(self.ruleContainer)
 
@@ -280,18 +319,11 @@ class Ui_MainWindow(object):
         MainWindow.setStatusBar(self.statusbar)
         self.toolBar = QToolBar(MainWindow)
         self.toolBar.setObjectName(u"toolBar")
-        sizePolicy3 = QSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Preferred)
-        sizePolicy3.setHorizontalStretch(0)
-        sizePolicy3.setVerticalStretch(0)
-        sizePolicy3.setHeightForWidth(self.toolBar.sizePolicy().hasHeightForWidth())
-        self.toolBar.setSizePolicy(sizePolicy3)
         MainWindow.addToolBar(Qt.ToolBarArea.RightToolBarArea, self.toolBar)
 
         self.toolBar.addAction(self.actionSave)
         self.toolBar.addAction(self.actionSaveAs)
         self.toolBar.addAction(self.actionLoad)
-        self.toolBar.addAction(self.actionAdd)
-        self.toolBar.addAction(self.actionDelete)
         self.toolBar.addSeparator()
         self.toolBar.addAction(self.actionQuit)
 
@@ -454,21 +486,23 @@ class Ui_MainWindow(object):
         self.compareBox.setItemText(1, QCoreApplication.translate("MainWindow", u"\u5c0f\u4e8e", None))
 
 #if QT_CONFIG(tooltip)
-        self.label_3.setToolTip(QCoreApplication.translate("MainWindow", u"\u641c\u7d22\u6587\u4ef6\u7684\u89c4\u5219\n"
+        self.label_3.setToolTip(QCoreApplication.translate("MainWindow", u"\u641c\u7d22\u6587\u4ef6\u65f6\u5e94\u5305\u542b\u6b64\u5904\u89c4\u5219\u5339\u914d\u5230\u7684\u6587\u4ef6\u6216\u76ee\u5f55\n"
 "\u5177\u4f53\u89c4\u5219\u548c.gitignore\u76f8\u540c", None))
 #endif // QT_CONFIG(tooltip)
 #if QT_CONFIG(statustip)
-        self.label_3.setStatusTip(QCoreApplication.translate("MainWindow", u"\u641c\u7d22\u6587\u4ef6\u7684\u89c4\u5219\uff0c\u5177\u4f53\u89c4\u5219\u548c.gitignore\u76f8\u540c", None))
+        self.label_3.setStatusTip(QCoreApplication.translate("MainWindow", u"\u641c\u7d22\u6587\u4ef6\u65f6\u5e94\u5305\u542b\u6b64\u5904\u89c4\u5219\u5339\u914d\u5230\u7684\u6587\u4ef6\u6216\u76ee\u5f55\uff0c\u5177\u4f53\u89c4\u5219\u548c.gitignore\u76f8\u540c", None))
 #endif // QT_CONFIG(statustip)
-        self.label_3.setText(QCoreApplication.translate("MainWindow", u"\u5177\u4f53\n"
+        self.label_3.setText(QCoreApplication.translate("MainWindow", u"\u5305\u542b\n"
 "\u89c4\u5219", None))
 #if QT_CONFIG(tooltip)
-        self.searchButton.setToolTip(QCoreApplication.translate("MainWindow", u"\u641c\u7d22\u7b26\u5408\u89c4\u5219\u548c\u6587\u4ef6\u5927\u5c0f\u7684\u6587\u4ef6(Ctrl+Enter)", None))
+        self.label_6.setToolTip(QCoreApplication.translate("MainWindow", u"\u641c\u7d22\u6587\u4ef6\u65f6\u5e94\u6392\u9664\u6b64\u5904\u89c4\u5219\u5339\u914d\u5230\u7684\u6587\u4ef6\u6216\u76ee\u5f55\n"
+"\u5177\u4f53\u89c4\u5219\u548c.gitignore\u76f8\u540c", None))
 #endif // QT_CONFIG(tooltip)
 #if QT_CONFIG(statustip)
-        self.searchButton.setStatusTip(QCoreApplication.translate("MainWindow", u"\u641c\u7d22\u7b26\u5408\u89c4\u5219\u548c\u6587\u4ef6\u5927\u5c0f\u7684\u6587\u4ef6(Ctrl+Enter)", None))
+        self.label_6.setStatusTip(QCoreApplication.translate("MainWindow", u"\u641c\u7d22\u6587\u4ef6\u65f6\u5e94\u6392\u9664\u6b64\u5904\u89c4\u5219\u5339\u914d\u5230\u7684\u6587\u4ef6\u6216\u76ee\u5f55\uff0c\u5177\u4f53\u89c4\u5219\u548c.gitignore\u76f8\u540c", None))
 #endif // QT_CONFIG(statustip)
-        self.searchButton.setText(QCoreApplication.translate("MainWindow", u"\u641c\u7d22", None))
+        self.label_6.setText(QCoreApplication.translate("MainWindow", u"\u6392\u9664\n"
+"\u89c4\u5219", None))
 #if QT_CONFIG(tooltip)
         self.disableProgressCheckBox.setToolTip(QCoreApplication.translate("MainWindow", u"\u7981\u7528\u8fdb\u5ea6\u6761\u5220\u9664\u6587\u4ef6\u4f1a\u66f4\u5feb", None))
 #endif // QT_CONFIG(tooltip)
@@ -476,6 +510,13 @@ class Ui_MainWindow(object):
         self.disableProgressCheckBox.setStatusTip(QCoreApplication.translate("MainWindow", u"\u7981\u7528\u8fdb\u5ea6\u6761\u5220\u9664\u6587\u4ef6\u4f1a\u66f4\u5feb", None))
 #endif // QT_CONFIG(statustip)
         self.disableProgressCheckBox.setText(QCoreApplication.translate("MainWindow", u"\u7981\u7528\u8fdb\u5ea6\u6761", None))
+#if QT_CONFIG(tooltip)
+        self.searchButton.setToolTip(QCoreApplication.translate("MainWindow", u"\u641c\u7d22\u7b26\u5408\u89c4\u5219\u548c\u6587\u4ef6\u5927\u5c0f\u7684\u6587\u4ef6(Ctrl+Enter)", None))
+#endif // QT_CONFIG(tooltip)
+#if QT_CONFIG(statustip)
+        self.searchButton.setStatusTip(QCoreApplication.translate("MainWindow", u"\u641c\u7d22\u7b26\u5408\u89c4\u5219\u548c\u6587\u4ef6\u5927\u5c0f\u7684\u6587\u4ef6(Ctrl+Enter)", None))
+#endif // QT_CONFIG(statustip)
+        self.searchButton.setText(QCoreApplication.translate("MainWindow", u"\u641c\u7d22", None))
         self.toolBar.setWindowTitle(QCoreApplication.translate("MainWindow", u"toolBar", None))
     # retranslateUi
 
