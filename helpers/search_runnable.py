@@ -17,8 +17,9 @@ class SearchRunnable(QRunnable):
     # data_queue: 存储输出数据的队列
     # compare: 比较方法，小于 或 大于等于，用于比较文件大小，过滤文件
     # compare_size: 比较文件大小时的尺寸 若为 `大小不限` 则不用过滤文件大小
-    def __init__(self, data_queue, include_spec, exclude_spec, root, compare, compare_size):
+    def __init__(self, cancel_evnet, data_queue, include_spec, exclude_spec, root, compare, compare_size):
         super().__init__()
+        self.cancel_event = cancel_evnet
         self.data_queue = data_queue
         self.include_spec = include_spec
         self.exclude_spec = exclude_spec
@@ -48,6 +49,8 @@ class SearchRunnable(QRunnable):
         return eval(f'{match_tuple[-1]} {operator} {self.compare_size}')
 
     def run(self, /) -> None:
+        if self.cancel_event.is_set():
+            return
         list_dir_result = os.listdir(self.root)
         with concurrent.futures.ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
             fs = [executor.submit(self.match, pth) for pth in list_dir_result]
@@ -60,15 +63,20 @@ class SearchRunnable(QRunnable):
             match_result = list(filter(self.size_filter, match_result))
         for pth, abs_path, is_dir, size in match_result:
             ext_name = os.path.splitext(abs_path)[-1].lower()
+            if self.cancel_event.is_set():
+                return
             self.data_queue.put((self.root, pth, abs_path, is_dir, ext_name, size))
         if len(need_recursive) > 0:
-            for match_tuple in need_recursive:
-                rab = SearchRunnable(self.data_queue, self.include_spec, self.exclude_spec,
-                                     match_tuple[2], self.compare, self.src_compare_size)
-                QThreadPool.globalInstance().start(rab)
-            # runnables = [
-            #     SearchRunnable(self.data_queue, self.include_spec, self.exclude_spec, match_tuple[2], self.compare,
-            #                    self.src_compare_size) for match_tuple in need_recursive]
-            # pool = QThreadPool.globalInstance()
-            # with concurrent.futures.ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
-            #     executor.map(pool.start, runnables)
+            # for match_tuple in need_recursive:
+            #     if self.cancel_event.is_set():
+            #         return
+            #     rab = SearchRunnable(self.cancel_event, self.data_queue, self.include_spec, self.exclude_spec,
+            #                          match_tuple[2], self.compare, self.src_compare_size)
+            #     QThreadPool.globalInstance().start(rab)
+
+            runnables = [
+                SearchRunnable(self.cancel_event, self.data_queue, self.include_spec, self.exclude_spec, match_tuple[2],
+                               self.compare, self.src_compare_size) for match_tuple in need_recursive]
+            pool = QThreadPool.globalInstance()
+            with concurrent.futures.ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
+                executor.map(pool.start, runnables)

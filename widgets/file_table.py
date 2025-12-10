@@ -14,6 +14,7 @@ class FileTable(QTableWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.cancel_event = None
         # 第一批显示数据的大小
         self.first_batch_size = 1000
         self.batch_size = 3
@@ -64,6 +65,9 @@ class FileTable(QTableWidget):
             self.setItem(i, 5, QTableWidgetItem(byte_size_to_str(size)))
 
     def _build_next_batch(self, batch_idx, table_datas):
+        if self.cancel_event.is_set():
+            self.loaded.emit()
+            return
         start_i = batch_idx.pop(0)
         _table_datas = table_datas[start_i:start_i + self.batch_size]
         self._build_table(_table_datas)
@@ -73,7 +77,16 @@ class FileTable(QTableWidget):
             self.loaded.emit()
 
     def _build_first_batch(self, table_datas):
-        self._build_table(table_datas)
+        if self.cancel_event.is_set():
+            self.loaded.emit()
+            return
+        row_count = len(table_datas)
+
+        # 先批量构造一批结果
+        _first_batch_count = row_count if row_count <= self.first_batch_size else self.first_batch_size
+        _first_batch_datas = table_datas[:_first_batch_count]
+
+        self._build_table(_first_batch_datas)
         self.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         self.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         self.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
@@ -81,16 +94,9 @@ class FileTable(QTableWidget):
         self.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
         self.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
 
-    def load_table(self, table_datas):
-        self.clearContents()
-        self.setRowCount(0)
-        if len(table_datas) == 0:
+        if self.cancel_event.is_set():
+            self.loaded.emit()
             return
-        row_count = len(table_datas)
-
-        # 先批量构造一批结果
-        _first_batch_count = row_count if row_count <= self.first_batch_size else self.first_batch_size
-        QTimer.singleShot(0, lambda: self._build_first_batch(table_datas[:_first_batch_count]))
 
         if row_count > self.first_batch_size:
             # 分批加载
@@ -100,6 +106,20 @@ class FileTable(QTableWidget):
             self._build_next_batch(batch_idx, table_datas)
         else:
             self.loaded.emit()
+
+    def load_table(self, cancel_event, table_datas):
+        self.cancel_event = cancel_event
+        self.clearContents()
+        self.setRowCount(0)
+
+        if self.cancel_event.is_set():
+            self.loaded.emit()
+            return
+
+        if len(table_datas) == 0:
+            return
+
+        QTimer.singleShot(0, lambda: self._build_first_batch(table_datas))
 
     def get_checked_path(self):
         delete_datas = []

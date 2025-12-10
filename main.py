@@ -1,12 +1,13 @@
 import os
 import sys
 import threading
+import time
 from queue import Queue
 from typing import TypedDict
 
 import pathspec
 from PySide6.QtCore import Slot, Qt, QThreadPool, Signal, QTimer
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QIcon, QAction
 from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog, QInputDialog, QMessageBox, QProgressDialog
 
 from helpers.delete_runnable import DeleteRunnable
@@ -29,6 +30,8 @@ class SearchMeta(TypedDict):
     thread: threading.Thread | None
     # 等待搜索结束的 QTimer，搜索结束后会进行表格加载
     wait_for_search_done_timer: QTimer | None
+    # 取消事件
+    cancel_event: threading.Event | None
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
@@ -49,7 +52,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             'searching': False,
             'search_done': False,
             'thread': None,
-            'wait_for_search_done_timer': None
+            'wait_for_search_done_timer': None,
+            'cancel_event': None
         }
 
         # 工具栏
@@ -89,9 +93,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.deleteButton.setShortcut('Ctrl + D')
         self.fileTable.loaded.connect(self.on_file_table_loaded)
 
-        # todo
-        self.dir_edit.setText(r'D:\projects\学校\实训')
-
     def closeEvent(self, e) -> None:
         # 询问是否保存配置
         if self.has_diff_with_saved_data():
@@ -99,6 +100,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                                          QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
             if reply == QMessageBox.StandardButton.Yes:
                 self.on_save()
+        if self.search_meta['cancel_event'] is not None and not self.search_meta['cancel_event'].is_set():
+            self.search_meta['cancel_event'].set()
 
     def update_rule_name_box(self):
         self.ruleNameBox.blockSignals(True)
@@ -229,11 +232,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     @Slot()
     def on_cancel_search(self):
-        pass
+        cancel_event = self.search_meta['cancel_event']
+        if cancel_event is not None and not cancel_event.is_set():
+            cancel_event.set()
 
     @Slot()
     def on_search(self):
         self.set_searching(True)
+        cancel_event = threading.Event()
+        self.search_meta['cancel_event'] = cancel_event
         dir_path = self.dir_edit.text()
         if dir_path == '':
             QMessageBox.warning(self, '警告', '请选择一个搜索目录')
@@ -247,8 +254,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         exclude_spec = pathspec.PathSpec.from_lines('gitwildmatch', exclude_rules) if len(exclude_rules) > 0 else None
 
         data_queue = Queue()
-        rab = SearchRunnable(data_queue, include_spec, exclude_spec, dir_path, self.compareBox.currentText(),
+        rab = SearchRunnable(cancel_event, data_queue, include_spec, exclude_spec, dir_path,
+                             self.compareBox.currentText(),
                              self.sizeBox.currentText())
+        s = time.perf_counter()
         self.thread_pool.start(rab)
 
         self.search_meta['search_done'] = False
@@ -256,6 +265,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         def wait_for_done():
             self.thread_pool.waitForDone(-1)
             self.search_meta['search_done'] = True
+            print(f'耗时: {time.perf_counter() - s} 秒')
 
         self.search_meta['thread'] = threading.Thread(target=wait_for_done)
         self.search_meta['thread'].start()
@@ -267,7 +277,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 while not data_queue.empty():
                     table_datas.append(data_queue.get())
                 table_datas = sorted(table_datas, key=lambda x: x[2])
-                self.fileTable.load_table(table_datas)
+                self.fileTable.load_table(cancel_event, table_datas)
                 self.search_meta['wait_for_search_done_timer'].stop()
 
         self.search_meta['wait_for_search_done_timer'] = QTimer(interval=100)
