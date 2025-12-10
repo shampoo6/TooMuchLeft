@@ -67,13 +67,6 @@ class SearchRunnable(QRunnable):
                 return
             self.data_queue.put((self.root, pth, abs_path, is_dir, ext_name, size))
         if len(need_recursive) > 0:
-            # for match_tuple in need_recursive:
-            #     if self.cancel_event.is_set():
-            #         return
-            #     rab = SearchRunnable(self.cancel_event, self.data_queue, self.include_spec, self.exclude_spec,
-            #                          match_tuple[2], self.compare, self.src_compare_size)
-            #     QThreadPool.globalInstance().start(rab)
-
             runnables = [
                 SearchRunnable(self.cancel_event, self.data_queue, self.include_spec, self.exclude_spec, match_tuple[2],
                                self.compare, self.src_compare_size) for match_tuple in need_recursive]

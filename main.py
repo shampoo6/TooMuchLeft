@@ -7,7 +7,7 @@ from typing import TypedDict
 
 import pathspec
 from PySide6.QtCore import Slot, Qt, QThreadPool, Signal, QTimer
-from PySide6.QtGui import QIcon, QAction
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog, QInputDialog, QMessageBox, QProgressDialog
 
 from helpers.delete_runnable import DeleteRunnable
@@ -238,9 +238,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     @Slot()
     def on_search(self):
-        self.set_searching(True)
-        cancel_event = threading.Event()
-        self.search_meta['cancel_event'] = cancel_event
         dir_path = self.dir_edit.text()
         if dir_path == '':
             QMessageBox.warning(self, '警告', '请选择一个搜索目录')
@@ -248,6 +245,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if not os.path.exists(dir_path):
             QMessageBox.critical(self, '错误', '目录不存在')
             return
+
+        self.set_searching(True)
+        cancel_event = threading.Event()
+        self.search_meta['cancel_event'] = cancel_event
 
         include_rules, exclude_rules = self.get_current_rules()
         include_spec = pathspec.PathSpec.from_lines('gitwildmatch', include_rules) if len(include_rules) > 0 else None
@@ -257,7 +258,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         rab = SearchRunnable(cancel_event, data_queue, include_spec, exclude_spec, dir_path,
                              self.compareBox.currentText(),
                              self.sizeBox.currentText())
-        s = time.perf_counter()
         self.thread_pool.start(rab)
 
         self.search_meta['search_done'] = False
@@ -265,7 +265,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         def wait_for_done():
             self.thread_pool.waitForDone(-1)
             self.search_meta['search_done'] = True
-            print(f'耗时: {time.perf_counter() - s} 秒')
 
         self.search_meta['thread'] = threading.Thread(target=wait_for_done)
         self.search_meta['thread'].start()
@@ -283,33 +282,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.search_meta['wait_for_search_done_timer'] = QTimer(interval=100)
         self.search_meta['wait_for_search_done_timer'].timeout.connect(wait_for_build_table)
         self.search_meta['wait_for_search_done_timer'].start()
-
-    @Slot()
-    def on_search_bak(self):
-        self.set_searching(True)
-        dir_path = self.dir_edit.text()
-        if dir_path == '':
-            QMessageBox.warning(self, '警告', '请选择一个搜索目录')
-            return
-        if not os.path.exists(dir_path):
-            QMessageBox.critical(self, '错误', '目录不存在')
-            return
-
-        include_rules, exclude_rules = self.get_current_rules()
-        include_spec = pathspec.PathSpec.from_lines('gitwildmatch', include_rules) if len(include_rules) > 0 else None
-        exclude_spec = pathspec.PathSpec.from_lines('gitwildmatch', exclude_rules) if len(exclude_rules) > 0 else None
-
-        data_queue = Queue()
-        rab = SearchRunnable(data_queue, include_spec, exclude_spec, dir_path, self.compareBox.currentText(),
-                             self.sizeBox.currentText())
-        self.thread_pool.start(rab)
-        self.thread_pool.waitForDone(-1)
-        # 构建表格
-        table_datas = []
-        while not data_queue.empty():
-            table_datas.append(data_queue.get())
-        table_datas = sorted(table_datas, key=lambda x: x[2])
-        self.fileTable.load_table(table_datas)
 
     @Slot()
     def on_file_table_loaded(self):
