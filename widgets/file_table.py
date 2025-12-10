@@ -1,7 +1,7 @@
 import os
 import subprocess
 
-from PySide6.QtCore import Slot, QTimer
+from PySide6.QtCore import Slot, QTimer, Signal
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QTableWidget, QHeaderView, QCheckBox, QTableWidgetItem, QMenu, QApplication
 
@@ -9,6 +9,9 @@ from utils import byte_size_to_str
 
 
 class FileTable(QTableWidget):
+    # 表格加载完成
+    loaded = Signal()
+
     def __init__(self, parent=None):
         super().__init__(parent)
         # 第一批显示数据的大小
@@ -63,11 +66,20 @@ class FileTable(QTableWidget):
     def _build_next_batch(self, batch_idx, table_datas):
         start_i = batch_idx.pop(0)
         _table_datas = table_datas[start_i:start_i + self.batch_size]
-
         self._build_table(_table_datas)
-
         if len(batch_idx) > 0:
             QTimer.singleShot(0, lambda: self._build_next_batch(batch_idx, table_datas))
+        else:
+            self.loaded.emit()
+
+    def _build_first_batch(self, table_datas):
+        self._build_table(table_datas)
+        self.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        self.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        self.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
+        self.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
 
     def load_table(self, table_datas):
         self.clearContents()
@@ -78,14 +90,7 @@ class FileTable(QTableWidget):
 
         # 先批量构造一批结果
         _first_batch_count = row_count if row_count <= self.first_batch_size else self.first_batch_size
-        self._build_table(table_datas[:_first_batch_count])
-
-        self.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        self.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-        self.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
-        self.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
-        self.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
-        self.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
+        QTimer.singleShot(0, lambda: self._build_first_batch(table_datas[:_first_batch_count]))
 
         if row_count > self.first_batch_size:
             # 分批加载
@@ -93,6 +98,8 @@ class FileTable(QTableWidget):
             table_datas = table_datas[_first_batch_count:]
             batch_idx = [i for i in range(0, row_count, self.batch_size)]
             self._build_next_batch(batch_idx, table_datas)
+        else:
+            self.loaded.emit()
 
     def get_checked_path(self):
         delete_datas = []

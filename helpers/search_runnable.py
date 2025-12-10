@@ -53,7 +53,8 @@ class SearchRunnable(QRunnable):
             fs = [executor.submit(self.match, pth) for pth in list_dir_result]
             match_result = [future.result() for future in concurrent.futures.as_completed(fs)]
         # 需要递归的数据: 与 spec 不匹配的目录
-        need_recursive = list(filter(lambda match_tuple: match_tuple[0] == MatchType.NOT_MATCHED and match_tuple[-2], match_result))
+        need_recursive = list(
+            filter(lambda match_tuple: match_tuple[0] == MatchType.NOT_MATCHED and match_tuple[-2], match_result))
         match_result = [result[1:] for result in match_result if result[0] == MatchType.MATCHED]
         if not self.skip_size_filter:
             match_result = list(filter(self.size_filter, match_result))
@@ -62,6 +63,12 @@ class SearchRunnable(QRunnable):
             self.data_queue.put((self.root, pth, abs_path, is_dir, ext_name, size))
         if len(need_recursive) > 0:
             for match_tuple in need_recursive:
-                rab = SearchRunnable(self.data_queue, self.include_spec, self.exclude_spec, match_tuple[2],
-                                     self.compare, self.src_compare_size)
+                rab = SearchRunnable(self.data_queue, self.include_spec, self.exclude_spec,
+                                     match_tuple[2], self.compare, self.src_compare_size)
                 QThreadPool.globalInstance().start(rab)
+            # runnables = [
+            #     SearchRunnable(self.data_queue, self.include_spec, self.exclude_spec, match_tuple[2], self.compare,
+            #                    self.src_compare_size) for match_tuple in need_recursive]
+            # pool = QThreadPool.globalInstance()
+            # with concurrent.futures.ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
+            #     executor.map(pool.start, runnables)

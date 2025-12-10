@@ -2,9 +2,10 @@ import os
 import sys
 import threading
 from queue import Queue
+from typing import TypedDict
 
 import pathspec
-from PySide6.QtCore import Slot, Qt, QThreadPool
+from PySide6.QtCore import Slot, Qt, QThreadPool, Signal, QTimer
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog, QInputDialog, QMessageBox, QProgressDialog
 
@@ -18,7 +19,21 @@ from widgets.load_rule_dialog import LoadRuleDialog
 from widgets.rule_manage_dialog import RuleManageDialog
 
 
+class SearchMeta(TypedDict):
+    # 是否在搜索业务中
+    # 搜索业务: 包括搜索和建立表格的过程
+    searching: bool
+    # 搜索文件是否结束，并不带表表格建立的过程结束
+    search_done: bool
+    # 等待搜索结果的线程
+    thread: threading.Thread | None
+    # 等待搜索结束的 QTimer，搜索结束后会进行表格加载
+    wait_for_search_done_timer: QTimer | None
+
+
 class MainWindow(QMainWindow, Ui_MainWindow):
+    searching_change = Signal()
+
     def __init__(self):
         super().__init__()
         self.setupUi(self)
@@ -28,6 +43,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.custom_file_size_dialog = None
         self.rule_manage_dialog = None
         self.load_rule_dialog = None
+
+        # 搜索相关属性
+        self.search_meta: SearchMeta = {
+            'searching': False,
+            'search_done': False,
+            'thread': None,
+            'wait_for_search_done_timer': None
+        }
 
         # 工具栏
         self.actionSave.triggered.connect(self.on_save)
@@ -55,12 +78,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 搜索按钮
         self.searchButton.clicked.connect(self.on_search)
         self.searchButton.setShortcut('Ctrl + Return')
+        self.cancelButton.clicked.connect(self.on_cancel_search)
+        self.cancelButton.setVisible(False)
+        self.searching_change.connect(self.on_searching_change)
 
         # 文件列表
         self.selectAllButton.clicked.connect(self.fileTable.select_all)
         self.unselectAllButton.clicked.connect(self.fileTable.unselect_all)
         self.deleteButton.clicked.connect(self.on_delete)
         self.deleteButton.setShortcut('Ctrl + D')
+        self.fileTable.loaded.connect(self.on_file_table_loaded)
 
         # todo
         self.dir_edit.setText(r'D:\projects\学校\实训')
@@ -102,6 +129,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         data: SavedData = RuleManager.get_instance().data
         current_rule = data['rules'][data['current_id']]
         return include_rules != current_rule['include'] or exclude_rules != current_rule['exclude']
+
+    def set_searching(self, searching):
+        """设置是否处于搜索中的状态"""
+        changed = self.search_meta['searching'] != searching
+        self.search_meta['searching'] = searching
+        if changed:
+            self.searching_change.emit()
 
     # =================== 槽
 
@@ -186,8 +220,63 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.rule_manage_dialog = RuleManageDialog()
         self.rule_manage_dialog.open()
 
+    # =================== 搜索
+
+    @Slot()
+    def on_searching_change(self):
+        self.searchButton.setVisible(not self.search_meta['searching'])
+        self.cancelButton.setVisible(self.search_meta['searching'])
+
+    @Slot()
+    def on_cancel_search(self):
+        pass
+
     @Slot()
     def on_search(self):
+        self.set_searching(True)
+        dir_path = self.dir_edit.text()
+        if dir_path == '':
+            QMessageBox.warning(self, '警告', '请选择一个搜索目录')
+            return
+        if not os.path.exists(dir_path):
+            QMessageBox.critical(self, '错误', '目录不存在')
+            return
+
+        include_rules, exclude_rules = self.get_current_rules()
+        include_spec = pathspec.PathSpec.from_lines('gitwildmatch', include_rules) if len(include_rules) > 0 else None
+        exclude_spec = pathspec.PathSpec.from_lines('gitwildmatch', exclude_rules) if len(exclude_rules) > 0 else None
+
+        data_queue = Queue()
+        rab = SearchRunnable(data_queue, include_spec, exclude_spec, dir_path, self.compareBox.currentText(),
+                             self.sizeBox.currentText())
+        self.thread_pool.start(rab)
+
+        self.search_meta['search_done'] = False
+
+        def wait_for_done():
+            self.thread_pool.waitForDone(-1)
+            self.search_meta['search_done'] = True
+
+        self.search_meta['thread'] = threading.Thread(target=wait_for_done)
+        self.search_meta['thread'].start()
+
+        def wait_for_build_table():
+            if self.search_meta['search_done']:
+                # 构建表格
+                table_datas = []
+                while not data_queue.empty():
+                    table_datas.append(data_queue.get())
+                table_datas = sorted(table_datas, key=lambda x: x[2])
+                self.fileTable.load_table(table_datas)
+                self.search_meta['wait_for_search_done_timer'].stop()
+
+        self.search_meta['wait_for_search_done_timer'] = QTimer(interval=100)
+        self.search_meta['wait_for_search_done_timer'].timeout.connect(wait_for_build_table)
+        self.search_meta['wait_for_search_done_timer'].start()
+
+    @Slot()
+    def on_search_bak(self):
+        self.set_searching(True)
         dir_path = self.dir_edit.text()
         if dir_path == '':
             QMessageBox.warning(self, '警告', '请选择一个搜索目录')
@@ -211,6 +300,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             table_datas.append(data_queue.get())
         table_datas = sorted(table_datas, key=lambda x: x[2])
         self.fileTable.load_table(table_datas)
+
+    @Slot()
+    def on_file_table_loaded(self):
+        self.set_searching(False)
 
     # =================== 删除
     @Slot()

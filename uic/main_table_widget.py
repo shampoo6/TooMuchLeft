@@ -155,6 +155,7 @@ class Ui_MainWindow(object):
         self.ruleContainer.setAutoFillBackground(True)
         self.formLayout_3 = QFormLayout(self.ruleContainer)
         self.formLayout_3.setObjectName(u"formLayout_3")
+        self.formLayout_3.setContentsMargins(0, 0, 0, 0)
         self.horizontalLayout_6 = QHBoxLayout()
         self.horizontalLayout_6.setObjectName(u"horizontalLayout_6")
         self.label_5 = QLabel(self.ruleContainer)
@@ -299,15 +300,34 @@ class Ui_MainWindow(object):
 
         self.formLayout_3.setWidget(5, QFormLayout.ItemRole.FieldRole, self.disableProgressCheckBox)
 
-        self.horizontalLayout_5 = QHBoxLayout()
-        self.horizontalLayout_5.setObjectName(u"horizontalLayout_5")
-        self.searchButton = QPushButton(self.ruleContainer)
+        self.widget_2 = QWidget(self.ruleContainer)
+        self.widget_2.setObjectName(u"widget_2")
+        sizePolicy3 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        sizePolicy3.setHorizontalStretch(0)
+        sizePolicy3.setVerticalStretch(0)
+        sizePolicy3.setHeightForWidth(self.widget_2.sizePolicy().hasHeightForWidth())
+        self.widget_2.setSizePolicy(sizePolicy3)
+        self.widget_2.setMinimumSize(QSize(0, 24))
+        self.widget_2.setMaximumSize(QSize(16777215, 24))
+        self.horizontalLayout_3 = QHBoxLayout(self.widget_2)
+        self.horizontalLayout_3.setObjectName(u"horizontalLayout_3")
+        self.horizontalLayout_3.setContentsMargins(0, 0, 0, 0)
+        self.cancelButton = QPushButton(self.widget_2)
+        self.cancelButton.setObjectName(u"cancelButton")
+        self.cancelButton.setMinimumSize(QSize(0, 24))
+        self.cancelButton.setMaximumSize(QSize(16777215, 24))
+
+        self.horizontalLayout_3.addWidget(self.cancelButton)
+
+        self.searchButton = QPushButton(self.widget_2)
         self.searchButton.setObjectName(u"searchButton")
+        self.searchButton.setMinimumSize(QSize(0, 24))
+        self.searchButton.setMaximumSize(QSize(16777215, 24))
 
-        self.horizontalLayout_5.addWidget(self.searchButton)
+        self.horizontalLayout_3.addWidget(self.searchButton)
 
 
-        self.formLayout_3.setLayout(6, QFormLayout.ItemRole.SpanningRole, self.horizontalLayout_5)
+        self.formLayout_3.setWidget(6, QFormLayout.ItemRole.FieldRole, self.widget_2)
 
         self.splitter.addWidget(self.ruleContainer)
 
@@ -510,6 +530,13 @@ class Ui_MainWindow(object):
         self.disableProgressCheckBox.setStatusTip(QCoreApplication.translate("MainWindow", u"\u7981\u7528\u8fdb\u5ea6\u6761\u5220\u9664\u6587\u4ef6\u4f1a\u66f4\u5feb", None))
 #endif // QT_CONFIG(statustip)
         self.disableProgressCheckBox.setText(QCoreApplication.translate("MainWindow", u"\u7981\u7528\u8fdb\u5ea6\u6761", None))
+#if QT_CONFIG(tooltip)
+        self.cancelButton.setToolTip(QCoreApplication.translate("MainWindow", u"\u53d6\u6d88\u641c\u7d22", None))
+#endif // QT_CONFIG(tooltip)
+#if QT_CONFIG(statustip)
+        self.cancelButton.setStatusTip(QCoreApplication.translate("MainWindow", u"\u53d6\u6d88\u641c\u7d22", None))
+#endif // QT_CONFIG(statustip)
+        self.cancelButton.setText(QCoreApplication.translate("MainWindow", u"\u53d6\u6d88\u641c\u7d22", None))
 #if QT_CONFIG(tooltip)
         self.searchButton.setToolTip(QCoreApplication.translate("MainWindow", u"\u641c\u7d22\u7b26\u5408\u89c4\u5219\u548c\u6587\u4ef6\u5927\u5c0f\u7684\u6587\u4ef6(Ctrl+Enter)", None))
 #endif // QT_CONFIG(tooltip)
