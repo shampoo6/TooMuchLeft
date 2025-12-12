@@ -1,23 +1,28 @@
 import os
 import sys
 import threading
-import time
 from queue import Queue
 from typing import TypedDict
 
 import pathspec
 from PySide6.QtCore import Slot, Qt, QThreadPool, Signal, QTimer
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog, QInputDialog, QMessageBox, QProgressDialog
+from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog, QInputDialog, QMessageBox
 
+from exceptions.delete_exception import DeleteException
+from exceptions.message_exception import MessageException, MessageType
+from exceptions.search_exception import SearchException
 from helpers.delete_runnable import DeleteRunnable
 from helpers.rule_manager import RuleManager, SavedData, RuleData
 from helpers.search_runnable import SearchRunnable
+from helpers.unit_exception_handler import UnitExceptionHandler
 from uic.main_table_widget import Ui_MainWindow
+from utils import run_as_admin
 from widgets.custom_file_size_dialog import CustomFileSizeDialog
 from constants import base_dir
 from widgets.load_rule_dialog import LoadRuleDialog
 from widgets.rule_manage_dialog import RuleManageDialog
+from widgets.status_bar import StatusBar
 
 
 class SearchMeta(TypedDict):
@@ -34,13 +39,33 @@ class SearchMeta(TypedDict):
     cancel_event: threading.Event | None
 
 
+class DeleteMeta(TypedDict):
+    # 删除中状态
+    deleting: bool
+    # 取消事件
+    cancel_event: threading.Event | None
+    # 进度条用的线程和timer
+    progress_thread: threading.Thread | None
+    progress_timer: QTimer | None
+    # 等待删除文件线程完成的等待线程和timer
+    wait_for_delete_done_thread: threading.Thread | None
+    wait_for_delete_done_timer: QTimer | None
+    # 是否删除完成
+    delete_done: bool
+
+
 class MainWindow(QMainWindow, Ui_MainWindow):
     searching_change = Signal()
+    deleting_change = Signal()
 
     def __init__(self):
         super().__init__()
         self.setupUi(self)
         self.setWindowTitle('删不尽')
+
+        # 初始化全局异常处理器
+        self.unit_exception_handler = UnitExceptionHandler.get_instance()
+        self.register_exception_handler()
 
         self.thread_pool = QThreadPool.globalInstance()
         self.custom_file_size_dialog = None
@@ -55,6 +80,21 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             'wait_for_search_done_timer': None,
             'cancel_event': None
         }
+
+        # 删除文件的取消事件
+        self.delete_meta: DeleteMeta = {
+            'deleting': False,
+            'cancel_event': None,
+            'progress_thread': None,
+            'progress_timer': None,
+            'wait_for_delete_done_thread': None,
+            'wait_for_delete_done_timer': None,
+            'delete_done': False
+        }
+
+        # 状态栏
+        self.status = StatusBar(self)
+        self.setStatusBar(self.status)
 
         # 工具栏
         self.actionSave.triggered.connect(self.on_save)
@@ -82,8 +122,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 搜索按钮
         self.searchButton.clicked.connect(self.on_search)
         self.searchButton.setShortcut('Ctrl + Return')
-        self.cancelButton.clicked.connect(self.on_cancel_search)
-        self.cancelButton.setVisible(False)
+        self.searchCancelButton.clicked.connect(self.on_cancel_search)
+        self.searchCancelButton.setVisible(False)
         self.searching_change.connect(self.on_searching_change)
 
         # 文件列表
@@ -91,7 +131,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.unselectAllButton.clicked.connect(self.fileTable.unselect_all)
         self.deleteButton.clicked.connect(self.on_delete)
         self.deleteButton.setShortcut('Ctrl + D')
+        self.deleting_change.connect(self.on_deleting_change)
+        self.deleteCancelButton.setVisible(False)
+        self.deleteCancelButton.clicked.connect(self.on_cancel_delete)
         self.fileTable.loaded.connect(self.on_file_table_loaded)
+
+        self.status.ready_message()
 
     def closeEvent(self, e) -> None:
         # 询问是否保存配置
@@ -102,6 +147,42 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.on_save()
         if self.search_meta['cancel_event'] is not None and not self.search_meta['cancel_event'].is_set():
             self.search_meta['cancel_event'].set()
+
+    # ========================== 异常处理
+
+    def register_exception_handler(self):
+        self.unit_exception_handler.default_handler = self.default_exception_handler
+        self.unit_exception_handler.add_handler(MessageException, self.message_exception_handler)
+        self.unit_exception_handler.add_handler(SearchException, self.search_exception_handler)
+        self.unit_exception_handler.add_handler(DeleteException, self.delete_exception_handler)
+
+    def default_exception_handler(self, exctype, value, traceback_obj):
+        QMessageBox.critical(self, '错误', str(value))
+
+    def message_exception_handler(self, exctype, value, traceback_obj):
+        title = value.title
+        message = value.message
+        msg_type = value.msg_type
+        if msg_type == MessageType.INFO:
+            message_fn = QMessageBox.information
+        elif msg_type == MessageType.WARNING:
+            message_fn = QMessageBox.warning
+        elif msg_type == MessageType.ERROR:
+            message_fn = QMessageBox.critical
+        else:
+            message_fn = QMessageBox.information
+        message_fn(self, title, message)
+
+    def search_exception_handler(self, exctype, value, traceback_obj):
+        self.set_searching(False)
+        QMessageBox.critical(self, '搜索异常', str(value))
+
+    def delete_exception_handler(self, exctype, value, traceback_obj):
+        if self.delete_meta['cancel_event'] is not None and not self.delete_meta['cancel_event'].is_set():
+            self.delete_meta['cancel_event'].set()
+        QMessageBox.critical(self, '删除异常', str(value))
+
+    # ==========================
 
     def update_rule_name_box(self):
         self.ruleNameBox.blockSignals(True)
@@ -139,6 +220,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.search_meta['searching'] = searching
         if changed:
             self.searching_change.emit()
+
+    def set_deleting(self, deleting):
+        changed = self.delete_meta['deleting'] != deleting
+        self.delete_meta['deleting'] = deleting
+        if changed:
+            self.deleting_change.emit()
 
     # =================== 槽
 
@@ -228,7 +315,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     @Slot()
     def on_searching_change(self):
         self.searchButton.setVisible(not self.search_meta['searching'])
-        self.cancelButton.setVisible(self.search_meta['searching'])
+        self.searchCancelButton.setVisible(self.search_meta['searching'])
 
     @Slot()
     def on_cancel_search(self):
@@ -261,14 +348,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.thread_pool.start(rab)
 
         self.search_meta['search_done'] = False
+        self.status.show_emoji_tip('搜索中')
 
         def wait_for_done():
             self.thread_pool.waitForDone(-1)
             self.search_meta['search_done'] = True
+            self.status.show_emoji_tip('渲染搜索结果中')
 
-        self.search_meta['thread'] = threading.Thread(target=wait_for_done)
+        self.search_meta['thread'] = threading.Thread(target=wait_for_done, daemon=True)
         self.search_meta['thread'].start()
 
+        @Slot()
         def wait_for_build_table():
             if self.search_meta['search_done']:
                 # 构建表格
@@ -283,11 +373,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.search_meta['wait_for_search_done_timer'].timeout.connect(wait_for_build_table)
         self.search_meta['wait_for_search_done_timer'].start()
 
-    @Slot()
-    def on_file_table_loaded(self):
+    @Slot(bool)
+    def on_file_table_loaded(self, success):
         self.set_searching(False)
+        msg = '✅搜索完成' if success else '❌取消搜索'
+        self.status.set_message(msg, 3000)
 
     # =================== 删除
+    @Slot()
+    def on_deleting_change(self):
+        self.deleteButton.setVisible(not self.delete_meta['deleting'])
+        self.deleteCancelButton.setVisible(self.delete_meta['deleting'])
+
     @Slot()
     def on_delete(self):
         # 搜集所有勾选项
@@ -303,40 +400,90 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                                       QMessageBox.StandardButton.No)
         if result == QMessageBox.StandardButton.No:
             return
-        current_step = 0
 
-        progress = QProgressDialog("删除中...", "取消", 0, total_step,
-                                   self) if self.disableProgressCheckBox.checkState() == Qt.CheckState.Unchecked else None
-        if progress is not None:
-            progress.setWindowTitle('删除')
-            progress.setWindowModality(Qt.WindowModality.WindowModal)
-            progress.setMinimumWidth(200)
-            progress.setMaximumWidth(300)
-            progress.show()
+        self.set_deleting(True)
+        self.delete_meta['delete_done'] = False
 
-        queue = Queue() if progress is not None else None
-        cancel_event = threading.Event() if progress is not None else None
+        show_progress = self.disableProgressCheckBox.checkState() == Qt.CheckState.Unchecked
+        if show_progress:
+            self.status.start_progress('删除中', 0, total_step)
+
+        queue = Queue() if show_progress else None
+        self.delete_meta['cancel_event'] = threading.Event() if show_progress else None
         for abs_path, is_dir in delete_datas:
-            rab = DeleteRunnable(abs_path, is_dir, queue, cancel_event)
+            rab = DeleteRunnable(abs_path, is_dir, queue, self.delete_meta['cancel_event'])
             self.thread_pool.start(rab)
-        if progress is not None:
-            while current_step < total_step - 1:
-                if progress.wasCanceled():
-                    cancel_event.set()
-                    break
-                deleted_path = queue.get()
-                current_step += 1
-                progress.setLabelText(f'已删除: {os.path.basename(deleted_path)}')
-                progress.setValue(current_step)
 
-        self.thread_pool.waitForDone(-1)
-        # 更新 ui
-        self.fileTable.delete_checked()
-        if progress is not None:
-            current_step += 1
-            progress.setLabelText(f'删除完毕')
-            progress.setValue(current_step)
+        current_step = 0
+        if show_progress:
+            def update_current_step():
+                nonlocal current_step
+                while current_step < total_step - 1:
+                    if self.delete_meta['cancel_event'].is_set():
+                        break
+                    try:
+                        queue.get(timeout=0.1)
+                    except:
+                        continue
+                    current_step += 1
 
+            thread = threading.Thread(target=update_current_step, daemon=True)
+            thread.start()
+            self.delete_meta['progress_thread'] = thread
+
+            @Slot()
+            def update_progress():
+                if self.delete_meta['cancel_event'].is_set():
+                    self.delete_meta['progress_timer'].stop()
+                    return
+                self.status.progress.setValue(current_step)
+                if current_step >= total_step:
+                    self.delete_meta['progress_timer'].stop()
+
+            timer = QTimer(interval=0)
+            timer.timeout.connect(update_progress)
+            timer.start()
+            self.delete_meta['progress_timer'] = timer
+
+        def wait_for_done():
+            self.thread_pool.waitForDone(-1)
+            self.delete_meta['delete_done'] = True
+
+        thread = threading.Thread(target=wait_for_done, daemon=True)
+        thread.start()
+        self.delete_meta['wait_for_delete_done_thread'] = thread
+
+        @Slot()
+        def after_wait_for_done():
+            nonlocal current_step
+            if self.delete_meta['delete_done']:
+                self.delete_meta['wait_for_delete_done_timer'].stop()
+                if show_progress and self.delete_meta['cancel_event'].is_set():
+                    self.status.progress.setValue(total_step)
+                    QTimer.singleShot(0, lambda: self.status.set_message('❌取消删除', 3000))
+                else:
+                    if show_progress:
+                        current_step += 1
+                    self.fileTable.delete_checked()
+                    QTimer.singleShot(0, lambda: self.status.set_message('✅删除完成', 3000))
+                self.set_deleting(False)
+
+        timer = QTimer(interval=0)
+        timer.timeout.connect(after_wait_for_done)
+        timer.start()
+        self.delete_meta['wait_for_delete_done_timer'] = timer
+
+    @Slot()
+    def on_cancel_delete(self):
+        cancel_event = self.delete_meta['cancel_event']
+        if cancel_event is not None and not cancel_event.is_set():
+            cancel_event.set()
+
+
+# 打包时应使用此代码，让用户授权管理员权限
+if not run_as_admin():
+    print("用户取消授权或发生错误")
+    sys.exit(1)
 
 app = QApplication(sys.argv)
 app.setWindowIcon(QIcon(os.path.join(base_dir, 'icon.ico')))

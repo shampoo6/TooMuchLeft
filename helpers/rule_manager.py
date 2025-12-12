@@ -92,7 +92,7 @@ class RuleManager(QObject):
     def delete_rule(self, _id_or_id_list: str | list[str]):
         """
         删除规则
-        :param _id: 规则 id
+        :param _id_or_id_list: 要删除的 id 或 id 列表
         :return: 是否删除成功
         """
         if isinstance(_id_or_id_list, str):

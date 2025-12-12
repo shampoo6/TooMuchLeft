@@ -117,7 +117,7 @@
          </widget>
         </item>
         <item>
-         <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,0,0,0">
+         <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,0,0,0,0">
           <item>
            <widget class="QPushButton" name="selectAllButton">
             <property name="sizePolicy">
@@ -152,6 +152,25 @@
           </item>
           <item>
            <widget class="QWidget" name="widget" native="true"/>
+          </item>
+          <item>
+           <widget class="QPushButton" name="deleteCancelButton">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="toolTip">
+             <string>取消删除</string>
+            </property>
+            <property name="statusTip">
+             <string>取消删除</string>
+            </property>
+            <property name="text">
+             <string>取消删除</string>
+            </property>
+           </widget>
           </item>
           <item>
            <widget class="QPushButton" name="deleteButton">
@@ -521,7 +540,7 @@
             <number>0</number>
            </property>
            <item>
-            <widget class="QPushButton" name="cancelButton">
+            <widget class="QPushButton" name="searchCancelButton">
              <property name="minimumSize">
               <size>
                <width>0</width>

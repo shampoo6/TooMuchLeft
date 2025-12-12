@@ -9,8 +9,8 @@ from utils import byte_size_to_str
 
 
 class FileTable(QTableWidget):
-    # 表格加载完成
-    loaded = Signal()
+    # 表格加载完成，True 代表加载完成 False 代表取消
+    loaded = Signal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -27,6 +27,7 @@ class FileTable(QTableWidget):
             context = QMenu(self)
             open_dir_action = QAction('打开文件夹', self)
             copy_action = QAction('复制路径', self)
+            remove_action = QAction('移除选择项', self)
 
             @Slot()
             def _open_file_dir():
@@ -42,10 +43,20 @@ class FileTable(QTableWidget):
                 pth = self.item(row_idx, 2).text()
                 QApplication.clipboard().setText(pth)
 
+            @Slot()
+            def _remove_rows():
+                indices = [i.row() for i in self.selectedIndexes()]
+                if len(indices) > 0:
+                    indices = sorted(indices, reverse=True)
+                    for i in indices:
+                        self.removeRow(i)
+
             open_dir_action.triggered.connect(_open_file_dir)
             copy_action.triggered.connect(_copy_path)
+            remove_action.triggered.connect(_remove_rows)
             context.addAction(open_dir_action)
             context.addAction(copy_action)
+            context.addAction(remove_action)
             context.exec(e.globalPos())
 
     def _build_table(self, table_datas):
@@ -66,7 +77,7 @@ class FileTable(QTableWidget):
 
     def _build_next_batch(self, batch_idx, table_datas):
         if self.cancel_event.is_set():
-            self.loaded.emit()
+            self.loaded.emit(False)
             return
         start_i = batch_idx.pop(0)
         _table_datas = table_datas[start_i:start_i + self.batch_size]
@@ -74,11 +85,11 @@ class FileTable(QTableWidget):
         if len(batch_idx) > 0:
             QTimer.singleShot(0, lambda: self._build_next_batch(batch_idx, table_datas))
         else:
-            self.loaded.emit()
+            self.loaded.emit(True)
 
     def _build_first_batch(self, table_datas):
         if self.cancel_event.is_set():
-            self.loaded.emit()
+            self.loaded.emit(False)
             return
         row_count = len(table_datas)
 
@@ -95,7 +106,7 @@ class FileTable(QTableWidget):
         self.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
 
         if self.cancel_event.is_set():
-            self.loaded.emit()
+            self.loaded.emit(False)
             return
 
         if row_count > self.first_batch_size:
@@ -105,7 +116,7 @@ class FileTable(QTableWidget):
             batch_idx = [i for i in range(0, row_count, self.batch_size)]
             self._build_next_batch(batch_idx, table_datas)
         else:
-            self.loaded.emit()
+            self.loaded.emit(True)
 
     def load_table(self, cancel_event, table_datas):
         self.cancel_event = cancel_event
@@ -113,10 +124,11 @@ class FileTable(QTableWidget):
         self.setRowCount(0)
 
         if self.cancel_event.is_set():
-            self.loaded.emit()
+            self.loaded.emit(False)
             return
 
         if len(table_datas) == 0:
+            self.loaded.emit(True)
             return
 
         QTimer.singleShot(0, lambda: self._build_first_batch(table_datas))
