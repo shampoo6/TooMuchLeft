@@ -9,3 +9,5 @@ __pycache__
 /TML_installer*.exe
 /rules.json
 !make_test_dir.py
+/IFLOW.md
+/todo
