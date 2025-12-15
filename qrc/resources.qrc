@@ -6,5 +6,7 @@
     <file alias="quit.png">../icons/quit.png</file>
     <file alias="save.png">../icons/save.png</file>
     <file alias="save_as.png">../icons/save_as.png</file>
+    <file alias="arrow-down-bold.png">../icons/arrow-down-bold.png</file>
+    <file alias="arrow-up-bold.png">../icons/arrow-up-bold.png</file>
   </qresource>
 </RCC>
