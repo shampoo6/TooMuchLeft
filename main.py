@@ -1,6 +1,7 @@
 import os
 import sys
 import threading
+# import traceback
 from queue import Queue
 from typing import TypedDict
 
@@ -157,7 +158,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.unit_exception_handler.add_handler(DeleteException, self.delete_exception_handler)
 
     def default_exception_handler(self, exctype, value, traceback_obj):
+        # 从 traceback_obj 读取调用栈
+        # traceback_str = ''.join(traceback.format_tb(traceback_obj))
+        # QMessageBox.critical(self, '错误', str(exctype))
         QMessageBox.critical(self, '错误', str(value))
+        # QMessageBox.critical(self, '错误', traceback_str)
 
     def message_exception_handler(self, exctype, value, traceback_obj):
         title = value.title
@@ -211,6 +216,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def has_diff_with_saved_data(self):
         include_rules, exclude_rules = self.get_current_rules()
         data: SavedData = RuleManager.get_instance().data
+        if data['current_id'] is None or data['current_id'] not in data['rules']:
+            return False
         current_rule = data['rules'][data['current_id']]
         return include_rules != current_rule['include'] or exclude_rules != current_rule['exclude']
 
