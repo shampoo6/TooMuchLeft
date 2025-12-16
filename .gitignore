@@ -11,3 +11,5 @@ __pycache__
 !make_test_dir.py
 /IFLOW.md
 /todo
+/logs/
+/log_example.py

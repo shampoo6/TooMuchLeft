@@ -1,7 +1,7 @@
 import os
 import sys
 import threading
-# import traceback
+import traceback
 from queue import Queue
 from typing import TypedDict
 
@@ -24,6 +24,7 @@ from constants import base_dir
 from widgets.load_rule_dialog import LoadRuleDialog
 from widgets.rule_manage_dialog import RuleManageDialog
 from widgets.status_bar import StatusBar
+from logger import logger, LogLevel, LogOutput
 
 
 class SearchMeta(TypedDict):
@@ -158,16 +159,29 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.unit_exception_handler.add_handler(DeleteException, self.delete_exception_handler)
 
     def default_exception_handler(self, exctype, value, traceback_obj):
+        # 记录异常到日志
+        logger.error(f"未处理异常 - 类型: {exctype.__name__}, 消息: {str(value)}")
         # 从 traceback_obj 读取调用栈
-        # traceback_str = ''.join(traceback.format_tb(traceback_obj))
-        # QMessageBox.critical(self, '错误', str(exctype))
+        traceback_str = ''.join(traceback.format_tb(traceback_obj))
+        logger.exception(f"调用栈: \n{traceback_str}")
         QMessageBox.critical(self, '错误', str(value))
-        # QMessageBox.critical(self, '错误', traceback_str)
 
     def message_exception_handler(self, exctype, value, traceback_obj):
         title = value.title
         message = value.message
         msg_type = value.msg_type
+        
+        # 记录消息异常到日志
+        log_msg = f"消息异常 - 标题: {title}, 消息: {message}, 类型: {msg_type.name}"
+        if msg_type == MessageType.INFO:
+            logger.info(log_msg)
+        elif msg_type == MessageType.WARNING:
+            logger.warning(log_msg)
+        elif msg_type == MessageType.ERROR:
+            logger.error(log_msg)
+        else:
+            logger.info(log_msg)
+        
         if msg_type == MessageType.INFO:
             message_fn = QMessageBox.information
         elif msg_type == MessageType.WARNING:
@@ -179,10 +193,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         message_fn(self, title, message)
 
     def search_exception_handler(self, exctype, value, traceback_obj):
+        # 记录搜索异常到日志
+        logger.error(f"搜索异常 - 类型: {exctype.__name__}, 消息: {str(value)}")
         self.set_searching(False)
         QMessageBox.critical(self, '搜索异常', str(value))
 
     def delete_exception_handler(self, exctype, value, traceback_obj):
+        # 记录删除异常到日志
+        logger.error(f"删除异常 - 类型: {exctype.__name__}, 消息: {str(value)}")
+
         if self.delete_meta['cancel_event'] is not None and not self.delete_meta['cancel_event'].is_set():
             self.delete_meta['cancel_event'].set()
         QMessageBox.critical(self, '删除异常', str(value))
@@ -239,8 +258,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     # =================== 工具栏
     @Slot()
     def on_save(self):
+        logger.info("用户执行保存规则操作")
         current_id = RuleManager.get_instance().data['current_id']
         if current_id is None:
+            logger.debug("当前规则ID为空，执行另存为操作")
             self.on_save_as()
         else:
             include_rules, exclude_rules = self.get_current_rules()
@@ -250,13 +271,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 "exclude": exclude_rules
             }
             _id = self.ruleNameBox.currentData()
+            logger.info(f"保存规则: 名称={rule_data['name']}, 包含规则数={len(include_rules)}, 排除规则数={len(exclude_rules)}")
             if not RuleManager.get_instance().update_rule(_id, rule_data):
+                logger.error(f"保存规则失败: 找不到对应ID {_id}")
                 QMessageBox.critical(self, '保存失败', '找不到对应 _id')
 
     @Slot()
     def on_save_as(self):
+        logger.info("用户执行另存为规则操作")
         rule_name, ok = QInputDialog.getText(self, '另存为', '请输入规则名:')
         if not ok:
+            logger.debug("用户取消另存为操作")
             return
         include_rules, exclude_rules = self.get_current_rules()
         rule_data: RuleData = {
@@ -264,7 +289,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             "include": include_rules,
             "exclude": exclude_rules
         }
+        logger.info(f"另存为规则: 名称={rule_name}, 包含规则数={len(include_rules)}, 排除规则数={len(exclude_rules)}")
         if not RuleManager.get_instance().add_rule(rule_data):
+            logger.error(f"另存为规则失败: 规则名 '{rule_name}' 已存在")
             QMessageBox.critical(self, '保存失败', '规则名已存在')
             return
         # 添加规则选项并选中
@@ -273,6 +300,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.ruleNameBox.addItem(rule_name, RuleManager.get_instance().data['current_id'])
             self.ruleNameBox.setCurrentText(rule_name)
             self.ruleNameBox.blockSignals(False)
+            logger.info(f"成功添加新规则到界面: {rule_name}")
 
     @Slot()
     def on_load_rule(self):
@@ -334,12 +362,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_search(self):
         dir_path = self.dir_edit.text()
         if dir_path == '':
+            logger.warning("用户尝试搜索但未选择目录")
             QMessageBox.warning(self, '警告', '请选择一个搜索目录')
             return
         if not os.path.exists(dir_path):
+            logger.error(f"用户选择的搜索目录不存在: {dir_path}")
             QMessageBox.critical(self, '错误', '目录不存在')
             return
 
+        logger.info(f"开始搜索操作 - 目录: {dir_path}")
         self.set_searching(True)
         cancel_event = threading.Event()
         self.search_meta['cancel_event'] = cancel_event
@@ -347,6 +378,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         include_rules, exclude_rules = self.get_current_rules()
         include_spec = pathspec.PathSpec.from_lines('gitwildmatch', include_rules) if len(include_rules) > 0 else None
         exclude_spec = pathspec.PathSpec.from_lines('gitwildmatch', exclude_rules) if len(exclude_rules) > 0 else None
+        
+        logger.info(f"搜索参数 - 包含规则数: {len(include_rules)}, 排除规则数: {len(exclude_rules)}, "
+                   f"大小条件: {self.compareBox.currentText()} {self.sizeBox.currentText()}")
 
         data_queue = Queue()
         rab = SearchRunnable(cancel_event, data_queue, include_spec, exclude_spec, dir_path,
@@ -398,16 +432,24 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         delete_datas = self.fileTable.get_checked_path()
         total_step = len(delete_datas)
         if total_step == 0:
+            logger.warning("用户尝试删除但未选择任何文件")
             return
         # 增加一步，用于删除 ui 界面中的选项
         total_step += 1
+
+        # 统计文件和目录数量
+        file_count = sum(1 for _, is_dir in delete_datas if not is_dir)
+        dir_count = sum(1 for _, is_dir in delete_datas if is_dir)
+        logger.info(f"用户准备删除 - 文件数: {file_count}, 目录数: {dir_count}")
 
         result = QMessageBox.question(self, '删除', '确定删除吗？',
                                       QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                                       QMessageBox.StandardButton.No)
         if result == QMessageBox.StandardButton.No:
+            logger.info("用户取消删除操作")
             return
 
+        logger.info("开始执行删除操作")
         self.set_deleting(True)
         self.delete_meta['delete_done'] = False
 
@@ -487,15 +529,28 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             cancel_event.set()
 
 
+# 初始化日志系统
+logger.set_output(LogOutput.BOTH)  # 同时输出到文件和终端
+logger.set_level(LogLevel.INFO)   # 设置日志级别为INFO
+logger.info("="*50)
+logger.info("TooMuchLeft 应用程序启动")
+logger.info("="*50)
+
 # 打包时应使用此代码，让用户授权管理员权限
 if not run_as_admin():
+    logger.error("用户取消授权或发生错误")
     print("用户取消授权或发生错误")
     sys.exit(1)
 
+logger.info("管理员权限获取成功")
 app = QApplication(sys.argv)
 app.setWindowIcon(QIcon(os.path.join(base_dir, 'icon.ico')))
+logger.info("应用程序实例创建完成")
 
 window = MainWindow()
+logger.info("主窗口创建完成")
 window.show()
+logger.info("主窗口显示")
 
 app.exec()
+logger.info("应用程序退出")
